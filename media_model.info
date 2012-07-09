@@ -1,0 +1,8 @@
+name = Media Model
+description = Extends Media module for working with 3d models
+dependencies[] = media
+dependencies[] = libraries
+package = Media
+core = 7.x
+files[] = media_model.module
+

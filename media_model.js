@@ -30,14 +30,41 @@ var cameraPos=[0,0,20];
 var scene;
 var distPoint1 = "No point selected";
 var distPoint2 = "No point selected";
+var cursor;
+
+var measuringEndpoint1;
+var measuringEndpoint2;
+var distanceLine;
 
 canvas.onmousedown=function(e){
 	if(e.button==0){
 		if (keyInput.isKeyPressed(GLGE.KI_CTRL)) {
 			var pickData = scene.pick(e.clientX, e.clientY);
-			distPoint2 = distPoint1;
-			distPoint1 = pickData.coord;
 			if (distPoint1 && distPoint2) {
+				distPoint1 = distPoint2 = null;
+				measuringEndpoint1.setVisible(false);
+				measuringEndpoint2.setVisible(false);
+				distanceLine.setVisible(false);
+			}
+			if (!distPoint1) {
+				distPoint1 = pickData.coord;
+			}
+			else {
+				distPoint2 = pickData.coord;
+			}
+
+			if (distPoint1) {
+				measuringEndpoint1.setLoc(distPoint1[0], distPoint1[1], distPoint1[2]);
+				measuringEndpoint1.setVisible(true);
+			}
+			if (distPoint2) {
+				measuringEndpoint2.setLoc(distPoint2[0], distPoint2[1], distPoint2[2]);
+				measuringEndpoint2.setVisible(true);
+			}
+			if (distPoint1 && distPoint2) {
+				var vertices = [].concat(distPoint1, distPoint2);
+				distanceLine.getMesh().setPositions(vertices);
+				distanceLine.setVisible(true);
 				console.log(distPoint1, distPoint2);
 				xd = distPoint1[0] - distPoint2[0];
 				yd = distPoint1[1] - distPoint2[1];
@@ -46,8 +73,8 @@ canvas.onmousedown=function(e){
 				console.log("Point 2: ", distPoint1);
 				console.log("Distance: ", Math.sqrt(xd*xd + yd*yd + zd*zd));
 			}
-			
-		} 
+
+		}
 		else {
         	view=true;
         	startpoint=[e.clientX,e.clientY,cameraPos[0],cameraPos[1]];
@@ -55,6 +82,7 @@ canvas.onmousedown=function(e){
 	}
 	e.preventDefault();
 }
+
 canvas.onmouseup=function(e){
 	view=false;
 }
@@ -68,6 +96,15 @@ canvas.onmousemove=function(e){
 		cameraOffset.setRotY(cameraPos[0]/10);
 		cameraOffset.setLocY(cameraPos[1]);
 		render=true;
+	}
+
+	var pickData = scene.pick(e.clientX, e.clientY);
+	if (!pickData || isNaN(pickData.coord[0])) {
+		cursor.setVisible(false);
+	}
+	else {
+		cursor.setLoc(pickData.coord[0], pickData.coord[1], pickData.coord[2]);
+		cursor.setVisible(true);
 	}
 }
 canvas.onmousewheel=function(e){
@@ -97,6 +134,31 @@ XMLdoc.onLoad = function(){
 	camera = XMLdoc.getElement( "mainCamera" );
 	cameraOffset = XMLdoc.getElement( "cameraOffset" );
 	var model= XMLdoc.getElement( "model" );
+	
+	var measuringEndpointMesh = new GLGE.Sphere();
+	measuringEndpointMesh.setRadius(0.2)
+	measuringEndpoint1 = new GLGE.Object();
+	measuringEndpoint1.setMesh(measuringEndpointMesh);
+	measuringEndpoint1.setMaterial(XMLdoc.getElement("red"));
+	measuringEndpoint1.setVisible(false);
+	measuringEndpoint2 = new GLGE.Object();
+	measuringEndpoint2.setMesh(measuringEndpointMesh);
+	measuringEndpoint2.setMaterial(XMLdoc.getElement("blue"));
+	measuringEndpoint2.setVisible(false);
+
+	cursor = new GLGE.Object();
+	cursor.setMesh(measuringEndpointMesh);
+	cursor.setMaterial(XMLdoc.getElement("green"));
+	cursor.setVisible(false);
+
+	distanceLine = (new GLGE.Object()).setDrawType(GLGE.DRAW_LINES);
+	distanceLine.setMesh((new GLGE.Mesh));
+	distanceLine.setMaterial(XMLdoc.getElement("distance"));
+	distanceLine.setVisible(false);
+	scene.addObject(measuringEndpoint1);
+	scene.addObject(measuringEndpoint2);
+	scene.addObject(distanceLine);
+	scene.addObject(cursor);
 		
 	//rotate camera
 	camera.setRotMatrix(lookAt([0,cameraPos[1],0],[0,2,-cameraPos[2]]));

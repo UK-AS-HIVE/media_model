@@ -171,6 +171,7 @@ function theme_model($variables) {
 		<material id="green" specular="0" color="#0f0" shadeless="1" />
 		<material id="blue" specular="0" color="#00f" shadeless="1" />
 		<material id="lines" specular="0" color="#777" shadeless="1" />
+    <material id="distance" specular="0" color="#ffff00" shadeless="1" />
 		
 
     <scene id="mainscene" ambient_color="#333" background_color="#888" fog_near="50" fog_far="60" fog_color="#555" fog_type="FOG_LINEAR" camera="#mainCamera">

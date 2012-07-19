@@ -184,7 +184,7 @@ function theme_model($variables) {
 				    <camera id="mainCamera" loc_z="20" loc_y="2.2" loc_x="0" rot_x="0" rot_y="0" />
 			</group>
 		
-	    <wavefront src="' . file_create_url($variables['element']['#file']->uri) . '" id="model" scale="1" />
+	    <wavefront src="' . file_create_url($variables['element']['#file']->uri) . '" id="model" scale="0.5" loc_z="0" loc_y="0" loc_x="0"/>
 
 			<light id="light" loc_x="0" loc_y="20" loc_z="10" rot_x="0" rot_y="1.57" attenuation_constant="0.9" type="L_DIR" />
 			<light id="light" loc_x="-10" loc_y="20" loc_z="-5" rot_x="-1.3" attenuation_constant="5" type="L_POINT" />

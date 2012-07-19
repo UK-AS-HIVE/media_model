@@ -153,7 +153,7 @@ function theme_model($variables) {
   // unique id per instance 
   //static $id=0;
   drupal_add_js(libraries_get_path('GLGE') . '/glge-compiled.js', 'file');
-  $output = '<canvas class="glge-model" id="glge-model-' . time() . '-' . $variables['element']['#file']->fid . ' width="640" height="480">';
+  $output = '<canvas class="glge-model" id="glge-model-' . time() . '-' . $variables['element']['#file']->fid . '" width="640" height="480">';
   $output .= '</canvas>';
   $output .=
   //'<script id="glge-document" id="glge-document-' . time() . '-' . $id . '" type="text/xml">

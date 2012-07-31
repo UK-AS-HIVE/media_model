@@ -134,6 +134,29 @@ XMLdoc.onLoad = function(){
 	camera = XMLdoc.getElement( "mainCamera" );
 	cameraOffset = XMLdoc.getElement( "cameraOffset" );
 	var model= XMLdoc.getElement( "model" );
+
+  //when model loaded get animations
+	model.addEventListener("loaded",function(data){
+		//var anim=document.getElementById("animations");
+		var animations=this.getAnimations();
+		for(var i=0;i<animations.length;i++){
+			var ele=document.createElement("div");
+			ele.innerHTML=animations[i];
+			var that=this;
+			ele.onmousedown=function(){
+				that.setMD2Animation(this.innerHTML,true);
+			};
+      console.log(animations[i]);
+			//anim.appendChild(ele);
+		}
+	});
+	
+
+	/*var multimaterials = model.getMultiMaterials();
+	for (var multimaterial in multimaterials) {
+		multimaterial.getMaterial().setShadeless(true);
+		multimaterial.getMaterial().setShadow(false);
+	};*/
 	
 	var measuringEndpointMesh = new GLGE.Sphere();
 	measuringEndpointMesh.setRadius(0.2)

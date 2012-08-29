@@ -185,11 +185,12 @@ function theme_model($variables) {
 				    <camera id="mainCamera" loc_z="20" loc_y="2.2" loc_x="0" rot_x="0" rot_y="0" />
 			</group>';
 		
-      $extension = substr($variables['element']['#file']->uri, strlen($filename)-4);
-      if ($extension == '.obj') {
+      $filename = $variables['element']['#file']->filename;
+      $extension = substr($variables['element']['#file']->filename, strlen($filename)-4);
+      if ($extension === '.obj') {
 	      $output .= '<wavefront src="' . file_create_url($variables['element']['#file']->uri) . '" id="model" scale="0.05" pickable="true"/>
 ';
-      } else if ($extension == '.md2') {
+      } else if ($extension === '.md2') {
 	      $output .= '<MD2 src="' . file_create_url($variables['element']['#file']->uri) . '" MD2_animation="MoveForward" id="model" scale="0.5" pickable="true"/>';
       }
 

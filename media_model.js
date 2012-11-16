@@ -17,7 +17,7 @@ var lookAt=function(origin,point){
 }
 
 
-var canvas = jQuery('canvas.glge-model')[0];
+var canvas = jQuery('canvas.threejs-model')[0];
 //canvas.width=innerWidth;
 //canvas.height=innerHeight;
 

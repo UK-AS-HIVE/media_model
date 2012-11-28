@@ -163,16 +163,17 @@ function theme_model($variables) {
   // unique id per instance 
   static $id=0;
   $objPath = file_create_url($variables['element']['#file']->uri); 
-  $mtlPath = substr($objPath, 0, strlen($objPath)-4);
+  $nrmPath = substr($objPath, 0, strlen($objPath)-4);
   $mediaPath = drupal_get_path('module', 'media_model');
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
+  drupal_add_js(libraries_get_path('threejs') . '/examples/js/libs/Tween.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/Detector.js', 'file');
   drupal_add_js($mediaPath . '/media_model_threejs.js', 'file');
   drupal_add_js('
    function loadModel(){
-    media_model_viewer("' . $objPath. '", "' . $mtlPath . '_tex.mtl", ' . $variables['element']['#file']->fid . ');
+    media_model_viewer("' . $objPath. '", "' . $objPath . '.mtl", "' . $nrmPath . '_Normal.jpg", ' . $variables['element']['#file']->fid . ');
    }
    window.onload = loadModel;
    ', 'inline');

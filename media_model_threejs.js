@@ -1,146 +1,230 @@
 var objPath, mtlPath, fileId;
 
-function media_model_viewer(objPath, mtlPath, fileId){
-      var container;
+function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
+  var container;
 
-      var camera;
-      var dirLight = new THREE.DirectionalLight( 0xffffff );
-      var scene, renderer;
+  var camera;
+  var dirLight = new THREE.DirectionalLight( 0xC8B79D );
+  var cursorPLight = new THREE.PointLight(0xffffff, 1, 100);
+  var scene, projector, renderer, cursor, highlighted = false;
+  var particleSystem, particleCount = 25,
+  particles = new THREE.Geometry(),
+  pMaterial =
+  new THREE.ParticleBasicMaterial({
+    color: 0xFFFFFF,
+    size: 1,
+    blending: THREE.AdditiveBlending,
+    transparent: false
+  });
 
-      var mouseX = 0, mouseY = 0;
-      var rotRadius = 100;
-      windowWidth = 640;
-      windowHeight = 480;
-      var windowHalfX = windowWidth / 2;
-      var windowHalfY = windowHeight / 2;
-      var model;
+  var mouse = { x: 0, y: 0 }, INTERSECTED;
+  var mouse3D = { x: 0, y: 0, z: 1};
+  var rotRadius = 100;
+  var windowWidth = 640;
+  var windowHeight = 480;
+  var windowHalfX = windowWidth / 2;
+  var windowHalfY = windowHeight / 2;
+  var model = [];
 
-      init();
-      animate();
+  init();
+  animate();
 
-      function init() {
-        container = document.createElement( 'threejs-model' );
+  function init() {
+    container = document.createElement( 'threejs-model' );
     var parent = document.getElementById( 'file-'.concat(fileId) );
     parent.appendChild( container );
 
-        camera = new THREE.PerspectiveCamera( 45, windowWidth / windowHeight, 1, 2000 );
-        camera.position.z = rotRadius;
+    camera = new THREE.PerspectiveCamera( 45, windowWidth / windowHeight, 1, 2000 );
+    camera.position.z = rotRadius;
 
         // scene
         scene = new THREE.Scene();
 
-        var ambient = new THREE.AmbientLight( 0x614400);
+        var ambient = new THREE.AmbientLight( 0x130d00);
         scene.add( ambient );
 
         dirLight.position.set(0,0,1).normalize();
         scene.add( dirLight );
 
-/*
-        // grid
-        var material = new THREE.LineBasicMaterial({
-          color: 0x0000ff,
-        }); 
-        var geom = new THREE.Geometry();
-        geom.vertices.push( new THREE.Vector3() );
-        geom.vertices.push( new THREE.Vector3() );
-        var newLine;
-        for(var i=0;i<=10;i++){
 
-          geom.vertices[0].set( -50, 0, -50+i*10 );
-          geom.vertices[1].set( 50, 0, -50+i*10 );
-          newLine = new THREE.Line(geom, material);
-          console.log( newLine);
-          scene.add( newLine );
-          geom.vertices[0].set( new THREE.Vector3(-50, 0, -50+i*10) );
-          geom.vertices[1].set( new THREE.Vector3(50, 0, -50+i*10) );
-          scene.add( new THREE.Line(geom) );
-        }*/
+  cursorPLight.position.set(0,0,0);
+  scene.add(cursorPLight);
+
+        // attempting to create cursor effect
 
 
+        projector = new THREE.Projector();
+        var mapHeight = THREE.ImageUtils.loadTexture( nrmPath );
 
-        // model
+        mapHeight.anisotropy = 4;
+        mapHeight.repeat.set( 0.998, 0.998 );
+        mapHeight.offset.set( 0.001, 0.001 )
+        mapHeight.wrapS = mapHeight.wrapT = THREE.RepeatWrapping;
+        mapHeight.format = THREE.RGBFormat;
 
+        var mapColor = THREE.ImageUtils.loadTexture( objPath.substr(0,objPath.length-4)+'.jpg');
+
+        mapColor.anisotropy = 4;
+        mapColor.repeat.set( 0.998, 0.998 );
+        mapColor.offset.set( 0.001, 0.001 )
+        mapColor.wrapS = mapColor.wrapT = THREE.RepeatWrapping;
+        mapColor.format = THREE.RGBFormat;
+        //materials.push( new THREE.MeshPhongMaterial( { map: imgTexture, bumpMap: imgTexture, bumpScale: bumpScale, color: 0xffffff, ambient: 0x777777, specular: specular, shininess: shininess, shading: shading } ) );
+        var material = new THREE.MeshPhongMaterial( { ambient: 0x552811,  specular: 0x333333, shininess: 25, map: mapColor, bumpMap: mapHeight, bumpScale: 19, metal: false } );
         var loader = new THREE.OBJMTLLoader();
         loader.addEventListener( 'load', function ( event ) {
-
-          model = event.content;
-          scene.add( model );
-
+          var tmp = event.content;
+          for(var i=0;i<tmp.children.length;i++){
+            model.push(tmp.children[i]);
+            model[i].name = "model";
+            model[i].material = material;
+            console.log(material);
+            model[i].flipSided = true;
+            scene.add(model[i]);
+          }
+          cursor = new THREE.Vector3(model[0].position.x, model[0].position.y, model[0].position.y);
+          for(var p = 0; p < particleCount; p++) {
+              var particle = new THREE.Vector3(cursor.x, cursor.y, cursor.z);
+            particle.velocity = new THREE.Vector3(Math.random()*2-1,-Math.random()*2-1,Math.random()*2-1);
+            particle.velocity.multiplyScalar(0.1);
+            particles.vertices.push(particle);
+          }
+          particleSystem = new THREE.ParticleSystem(particles, pMaterial);
+          particleSystem.sortParticles = true;
+          console.log(particleSystem);
+          scene.add(particleSystem);
         });
-      loader.load( objPath, mtlPath);
+        loader.load( objPath, mtlPath);
+
         renderer = new THREE.WebGLRenderer();
         renderer.setSize( windowWidth, windowHeight );
         renderer.setClearColorHex( 0x8e8272, 1 );
+        //renderer.setFaceCulling(0);
         container.appendChild( renderer.domElement );
         container.addEventListener( 'mousemove', onMouseMove, false );
         container.addEventListener( 'mousedown', onMouseDown, false );
         container.addEventListener( 'DOMMouseScroll', onMouseWheel, false );
         container.addEventListener( 'mousewheel', onMouseWheel, false );
       }
-    function onMouseWheel( event ){
-      event.preventDefault();
-      console.log(event);
+      function onMouseWheel( event ){
+        event.preventDefault();
+      //console.log(event);
       var direction = new THREE.Vector3();
       direction.copy(camera.position);
-      direction.addSelf(model.position).normalize();
+      direction.addSelf(model[0].position).normalize();
       direction.multiplyScalar(-windowWidth/100*event.wheelDelta/(Math.abs(event.wheelDelta)));
-      camera.position.addSelf(direction);
-      /*
-    var wheelData = e.detail ? e.detail/10 : e.wheelDelta/-300;
-    cameraPos[2]+=wheelData;
-    if(cameraPos[2]<1 && cameraPos[2]>-1) cameraPos[2]=cameraPos[2]/Math.abs(cameraPos[2]);
-    camera.setLocZ(cameraPos[2]);
-    camera.setRotMatrix(lookAt([0,cameraPos[1],0],[0,2,-cameraPos[2]]));
-    render=true;*/
-}
+      if(camera.position.x/Math.abs(camera.position.x)==(camera.position.x+direction.x)/Math.abs(camera.position.x+direction.x)
+        && camera.position.y/Math.abs(camera.position.y)==(camera.position.y+direction.y)/Math.abs(camera.position.y+direction.y)
+        && camera.position.z/Math.abs(camera.position.z)==(camera.position.z+direction.z)/Math.abs(camera.position.z+direction.z))
+        camera.position.addSelf(direction);
 
-      var lastX, lastY;
+    }
+
+      //var lastX, lastY;
       function onMouseMove( event ) {
 
-        if( event.which == 1 && lastX && lastY ){
-          var dx = lastX - event.clientX;
-          var dy = lastY - event.clientY;
+        if( event.which == 1 && mouse.x && mouse.y ){
+          var dx = mouse.x - event.offsetX;
+          var dy = mouse.y - event.offsetY;
           rotateAroundObject(camera, dx * 0.015, dy * 0.015);
           rotateAroundObject(dirLight, dx * 0.015, dy * 0.015);
 
         }
-                lastX = event.clientX;
-          lastY = event.clientY;
+
+        mouse.x = event.offsetX;
+        mouse.y = event.offsetY;
+        mouse3D.x = ( event.offsetX / windowWidth ) * 2 - 1;
+        mouse3D.y = - ( event.offsetY / windowHeight ) * 2 + 1;
       }
 
 
       function onMouseDown( event ) {
         if( event.which == 1 ){
-          
+
         }
       }
 
       //
 
       function animate() {
+        if(highlighted && particleSystem){ 
 
-        requestAnimationFrame( animate );
-        render();
+          var pCount = particleCount;
+          while(pCount--) {
 
-      }
+    // get the particle
+    var particle = particles.vertices[pCount];
+    // check if we need to reset
+    if(cursor.distanceTo(particle)>10) {
+     particle.x = cursor.x;
+     particle.y = cursor.y;
+     particle.z = cursor.z;
+     particle.velocity = new THREE.Vector3(Math.random()*2-1,Math.random()*2-1,Math.random()*2-1);
+     particle.velocity.multiplyScalar(0.1);
+   }
+       //particle.velocity.y -= Math.random() * .1;
 
-      function render() {
+    // and the position
+    particle.addSelf(particle.velocity);
+  }
+for (var i = 0; i > model[0].geometry.vertices.length; i++)
+{       
+    var localVertex = model[0].geometry.vertices[i].clone();
+    var globalVertex = model[0].matrix.multiplyVector3(localVertex);
+    var directionVector = globalVertex.subSelf( model[0].position );
+    var ray = new THREE.Ray( model[0].position, directionVector.clone().normalize() );
+    var collisionResults = ray.intersectObjects( model );
+    //if(i==0)console.log(collisionResults);
+    if ( collisionResults.length > 0 && collisionResults[0].distance < directionVector.length() ) 
+    {
+        // a collision occurred... do something...
+    }
+}
 
-      renderer.render( scene, camera );
+  // that we've changed its vertices.
+  particleSystem.geometry.verticesNeedUpdate = true;
+  particleSystem.visible = true;
+}
+else if(particleSystem){
+  particleSystem.visible = false;}
 
-      }
+//console.log(cursorPLight);
+//console.log(cursor);
+
+requestAnimationFrame( animate );
+render();
+
+}
+function render() {
+  var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
+  projector.unprojectVector( vector, camera );
+  var ray = new THREE.Ray(camera.position, vector.subSelf( camera.position ).normalize() );
+  var intersects = ray.intersectObjects( model );
       
+      if(intersects.length>0){
+          for(var i=0;i<intersects.length;i++){
+              cursor.copy(intersects[i].point);
+              cursorPLight.position.copy(intersects[i].point);
+              highlighted = true;
+          }
+      }
+            else{
+              highlighted = false;
+            }
+      renderer.render( scene, camera );
+  }
+
     // Rotate an object around an arbitrary axis in world space       
     function rotateAroundObject(object, xRadians, yRadians) { 
       var rotationMatrix = new THREE.Matrix4();
 
       if(xRadians != 0){
-                var matrix = new THREE.Matrix4();
+        var matrix = new THREE.Matrix4();
         matrix.extractRotation( object.matrix );
         var direction = new THREE.Vector3(0,1,0);
         direction = matrix.multiplyVector3( direction );
         rotationMatrix.makeRotationAxis(direction, xRadians);
-       object.applyMatrix(rotationMatrix);
+        object.applyMatrix(rotationMatrix);
       }
       if(yRadians != 0){
         var matrix = new THREE.Matrix4();
@@ -148,7 +232,7 @@ function media_model_viewer(objPath, mtlPath, fileId){
         var direction = new THREE.Vector3(1,0,0);
         direction = matrix.multiplyVector3( direction );
         rotationMatrix.makeRotationAxis(direction, yRadians);
-       object.applyMatrix(rotationMatrix);
+        object.applyMatrix(rotationMatrix);
       }
-      }
-}
+    }
+  }

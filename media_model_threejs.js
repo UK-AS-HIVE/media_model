@@ -25,7 +25,22 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
   var windowHalfX = windowWidth / 2;
   var windowHalfY = windowHeight / 2;
   var model = [];
+  var material;
 
+  var shaderMaterial, fragmentshader, vertexshader;
+  var attributes = {
+    displacement: {
+      type: 'f', // a float
+      value: [] // an empty array
+    }
+  };
+  
+  var uniforms = {
+    amplitude: {
+      type: 'f', // a float
+      value: 0
+    }
+  };
   init();
   animate();
 
@@ -47,8 +62,8 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
         scene.add( dirLight );
 
 
-  cursorPLight.position.set(0,0,0);
-  scene.add(cursorPLight);
+        cursorPLight.position.set(0,0,0);
+        scene.add(cursorPLight);
 
         // attempting to create cursor effect
 
@@ -69,8 +84,26 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
         mapColor.offset.set( 0.001, 0.001 )
         mapColor.wrapS = mapColor.wrapT = THREE.RepeatWrapping;
         mapColor.format = THREE.RGBFormat;
+
         //materials.push( new THREE.MeshPhongMaterial( { map: imgTexture, bumpMap: imgTexture, bumpScale: bumpScale, color: 0xffffff, ambient: 0x777777, specular: specular, shininess: shininess, shading: shading } ) );
-        var material = new THREE.MeshPhongMaterial( { ambient: 0x552811,  specular: 0x333333, shininess: 25, map: mapColor, bumpMap: mapHeight, bumpScale: 19, metal: false } );
+
+        if(mapHeight)
+          material = new THREE.MeshPhongMaterial( { ambient: 0x552811,  specular: 0x333333, shininess: 25, map: mapColor, bumpMap: mapHeight, bumpScale: 19, metal: false } );
+        else if(mapColor)
+          material = mtlPath;
+
+        jQuery.get('../sites/all/modules/media_model/shaders/vertexshader', function(data){
+          vertexshader = data;
+          console.log("Loaded vertexshader.js");
+          shaderMaterial = shaderLoad(uniforms, attributes, vertexshader, fragmentshader);
+        });
+        jQuery.get('../sites/all/modules/media_model/shaders/fragmentshader', function(data){
+          fragmentshader = data;
+          console.log("Loaded fragmentshader.js");
+          shaderMaterial = shaderLoad(uniforms, attributes, vertexshader, fragmentshader);
+        });
+
+
         var loader = new THREE.OBJMTLLoader();
         loader.addEventListener( 'load', function ( event ) {
           var tmp = event.content;
@@ -78,13 +111,13 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
             model.push(tmp.children[i]);
             model[i].name = "model";
             model[i].material = material;
-            console.log(material);
             model[i].flipSided = true;
-            scene.add(model[i]);
+            model[i].doubleSided = true;
+            //scene.add(model[i]);
           }
           cursor = new THREE.Vector3(model[0].position.x, model[0].position.y, model[0].position.y);
           for(var p = 0; p < particleCount; p++) {
-              var particle = new THREE.Vector3(cursor.x, cursor.y, cursor.z);
+            var particle = new THREE.Vector3(cursor.x, cursor.y, cursor.z);
             particle.velocity = new THREE.Vector3(Math.random()*2-1,-Math.random()*2-1,Math.random()*2-1);
             particle.velocity.multiplyScalar(0.1);
             particles.vertices.push(particle);
@@ -94,11 +127,11 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
           console.log(particleSystem);
           scene.add(particleSystem);
         });
-        loader.load( objPath, mtlPath);
+loader.load( objPath, mtlPath);
 
-        renderer = new THREE.WebGLRenderer();
-        renderer.setSize( windowWidth, windowHeight );
-        renderer.setClearColorHex( 0x8e8272, 1 );
+renderer = new THREE.WebGLRenderer();
+renderer.setSize( windowWidth, windowHeight );
+renderer.setClearColorHex( 0x8e8272, 1 );
         //renderer.setFaceCulling(0);
         container.appendChild( renderer.domElement );
         container.addEventListener( 'mousemove', onMouseMove, false );
@@ -146,7 +179,19 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 
       //
 
+      var switchedMaterials = false;
+      var frame = 0;
       function animate() {
+        uniforms.amplitude.value =
+    Math.sin(frame);
+    frame+=1;
+        if(model[0] != null && shaderMaterial != null && material != null && !switchedMaterials){
+          console.log([material, shaderMaterial]);
+          var tmp = THREE.SceneUtils.createMultiMaterialObject( model[0].geometry, [material, shaderMaterial]);
+          //model[0].material = [material, shaderMaterial];
+          scene.add(tmp);
+          switchedMaterials = true;
+        }
         if(highlighted && particleSystem){ 
 
           var pCount = particleCount;
@@ -167,8 +212,8 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
     // and the position
     particle.addSelf(particle.velocity);
   }
-for (var i = 0; i > model[0].geometry.vertices.length; i++)
-{       
+  for (var i = 0; i > model[0].geometry.vertices.length; i++)
+  {       
     var localVertex = model[0].geometry.vertices[i].clone();
     var globalVertex = model[0].matrix.multiplyVector3(localVertex);
     var directionVector = globalVertex.subSelf( model[0].position );
@@ -178,15 +223,16 @@ for (var i = 0; i > model[0].geometry.vertices.length; i++)
     if ( collisionResults.length > 0 && collisionResults[0].distance < directionVector.length() ) 
     {
         // a collision occurred... do something...
+      }
     }
-}
 
   // that we've changed its vertices.
   particleSystem.geometry.verticesNeedUpdate = true;
   particleSystem.visible = true;
 }
 else if(particleSystem){
-  particleSystem.visible = false;}
+  particleSystem.visible = false;
+}
 
 //console.log(cursorPLight);
 //console.log(cursor);
@@ -200,26 +246,25 @@ function render() {
   projector.unprojectVector( vector, camera );
   var ray = new THREE.Ray(camera.position, vector.subSelf( camera.position ).normalize() );
   var intersects = ray.intersectObjects( model );
-      
-      if(intersects.length>0){
-          for(var i=0;i<intersects.length;i++){
-              cursor.copy(intersects[i].point);
-              cursorPLight.position.copy(intersects[i].point);
-              highlighted = true;
-          }
-      }
-            else{
-              highlighted = false;
-            }
-      renderer.render( scene, camera );
+
+  if(intersects.length>0){
+    for(var i=0;i<intersects.length;i++){
+      cursor.copy(intersects[i].point);
+      cursorPLight.position.copy(intersects[i].point);
+      highlighted = true;
+    }
   }
+  else{
+    highlighted = false;
+  }
+  renderer.render( scene, camera );
+}
 
-    // Rotate an object around an arbitrary axis in world space       
-    function rotateAroundObject(object, xRadians, yRadians) { 
-      var rotationMatrix = new THREE.Matrix4();
-
-      if(xRadians != 0){
-        var matrix = new THREE.Matrix4();
+  // Rotate an object around an arbitrary axis in world space       
+  function rotateAroundObject(object, xRadians, yRadians) { 
+     var rotationMatrix = new THREE.Matrix4();
+     if(xRadians != 0){
+       var matrix = new THREE.Matrix4();
         matrix.extractRotation( object.matrix );
         var direction = new THREE.Vector3(0,1,0);
         direction = matrix.multiplyVector3( direction );
@@ -234,5 +279,20 @@ function render() {
         rotationMatrix.makeRotationAxis(direction, yRadians);
         object.applyMatrix(rotationMatrix);
       }
+    }
+
+
+
+    function shaderLoad(uniforms, attributes, vertexshader, fragmentshader){
+      if(vertexshader == null || fragmentshader == null)
+        return;
+
+      var shaderMaterial = new THREE.ShaderMaterial({
+        uniforms:       uniforms,
+        attributes:     attributes,
+        vertexShader:   vertexshader,
+        //fragmentShader: fragmentshader
+      });
+      return shaderMaterial;
     }
   }

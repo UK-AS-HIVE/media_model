@@ -26,6 +26,8 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
   var windowHalfY = windowHeight / 2;
   var model = [];
   var material;
+  var useMagnifyingGlass = false;
+  var magnifyingCube = new THREE.Mesh(new THREE.CubeGeometry(10,10,10), new THREE.MeshBasicMaterial());
 
   var shaderMaterial, fragmentshader, vertexshader;
   var attributes = {
@@ -44,8 +46,11 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
   init();
   animate();
 
-  function init() {
+      var point1Marker;
+      var point2Marker;
+function init(){
     container = document.createElement( 'threejs-model' );
+
     var parent = document.getElementById( 'file-'.concat(fileId) );
     parent.appendChild( container );
 
@@ -92,16 +97,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
         else if(mapColor)
           material = mtlPath;
 
-        jQuery.get('../sites/all/modules/media_model/shaders/vertexshader', function(data){
-          vertexshader = data;
-          console.log("Loaded vertexshader.js");
-          shaderMaterial = shaderLoad(uniforms, attributes, vertexshader, fragmentshader);
-        });
-        jQuery.get('../sites/all/modules/media_model/shaders/fragmentshader', function(data){
-          fragmentshader = data;
-          console.log("Loaded fragmentshader.js");
-          shaderMaterial = shaderLoad(uniforms, attributes, vertexshader, fragmentshader);
-        });
+
 
 
         var loader = new THREE.OBJMTLLoader();
@@ -113,8 +109,19 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
             model[i].material = material;
             model[i].flipSided = true;
             model[i].doubleSided = true;
-            //scene.add(model[i]);
+            scene.add(model[i]);
           }
+                  jQuery.get('../sites/all/modules/media_model/shaders/vertexshader', function(data){
+          vertexshader = data;
+          console.log("Loaded vertexshader.js");
+          shaderMaterial = shaderLoad(model[0], uniforms, attributes, vertexshader, fragmentshader);
+        });
+        jQuery.get('../sites/all/modules/media_model/shaders/fragmentshader', function(data){
+          fragmentshader = data;
+          console.log("Loaded fragmentshader.js");
+          shaderMaterial = shaderLoad(model[0], uniforms, attributes, vertexshader, fragmentshader);
+        });
+
           cursor = new THREE.Vector3(model[0].position.x, model[0].position.y, model[0].position.y);
           for(var p = 0; p < particleCount; p++) {
             var particle = new THREE.Vector3(cursor.x, cursor.y, cursor.z);
@@ -124,14 +131,23 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
           }
           particleSystem = new THREE.ParticleSystem(particles, pMaterial);
           particleSystem.sortParticles = true;
-          console.log(particleSystem);
+          //console.log(particleSystem);
           scene.add(particleSystem);
         });
 loader.load( objPath, mtlPath);
+point1Marker = new THREE.Mesh(new THREE.TetrahedronGeometry(5), new THREE.MeshBasicMaterial());
+point2Marker = new THREE.Mesh(new THREE.TetrahedronGeometry(5), new THREE.MeshBasicMaterial());
+
+scene.add(point1Marker);
+scene.add(point2Marker);
+point1Marker.visible = false;
+point2Marker.visible = false;
 
 renderer = new THREE.WebGLRenderer();
 renderer.setSize( windowWidth, windowHeight );
 renderer.setClearColorHex( 0x8e8272, 1 );
+magnifyingCube.visible = false;
+scene.add(magnifyingCube);
         //renderer.setFaceCulling(0);
         container.appendChild( renderer.domElement );
         container.addEventListener( 'mousemove', onMouseMove, false );
@@ -171,22 +187,67 @@ renderer.setClearColorHex( 0x8e8272, 1 );
       }
 
 
+      var lastMouseDown = new Date().getTime();
       function onMouseDown( event ) {
+              //console.log(event);
         if( event.which == 1 ){
-
+          var newMouseDown = new Date().getTime();
+          if(newMouseDown - lastMouseDown < 250){
+            //useMagnifyingGlass = !useMagnifyingGlass;
+            //magnifyingCube.visible = false;
+            if(!point1){
+              // if no point1, drop point1
+              point1 = new THREE.Vector3(cursor.x, cursor.y, cursor.z);
+              point1Marker.position.copy(point1);
+            }
+            else if(!point2){
+              // else if no point2, drop point2
+              point2 = new THREE.Vector3(cursor.x, cursor.y, cursor.z);
+              point2Marker.position.copy(point2);
+              var pointsDistance = point1.distanceTo(point2);
+          distanceText.innerHTML = 'Distance between selected points: ' + pointsDistance;
+          var lineGeometry = new THREE.Geometry();
+          lineGeometry.vertices.push(new THREE.Vector3(point1.x,point1.y+1,point1.z+1));
+          lineGeometry.vertices.push(new THREE.Vector3(point1.x,point1.y-1,point1.z-1));
+          lineGeometry.vertices.push(new THREE.Vector3(point2.x,point2.y+1,point2.z+1));
+          lineGeometry.vertices.push(new THREE.Vector3(point2.x,point2.y-1,point2.z-1));
+          distanceLine = new THREE.Ribbon(lineGeometry,  new THREE.MeshPhongMaterial( { color: 0x0000FF } ));//{ linewidth: 10 }));
+          scene.add(distanceLine);
+          container.appendChild(distanceText);
+            }
+            else{
+              // else reset
+              point1 = point2 = null;
+              container.removeChild(distanceText);
+              scene.remove(distanceLine);
+            }
+          }
+          lastMouseDown =  new Date().getTime();
         }
       }
 
       //
-
-      var switchedMaterials = false;
+          distanceText = document.createElement( 'div' );
+          distanceText.style.position = 'absolute';
+          distanceText.style.color = 'rgb(0,255,0)'
+          distanceText.style.left = '25px'; 
+          distanceText.style.top = '100px';
+          jQuery(distanceText).disableSelection();
+      var switchedMaterials = true;
       var frame = 0;
+      var point1, point2;
+      var distanceText;
+      var distanceLine;
+
       function animate() {
-        uniforms.amplitude.value =
-    Math.sin(frame);
+        if(point1){ point1Marker.visible = true; }
+        else{ point1Marker.visible = false; }
+        if(point2){ point2Marker.visible = true; }
+        else{ point2Marker.visible = false;}
+        uniforms.amplitude.value = Math.sin(frame);
     frame+=1;
         if(model[0] != null && shaderMaterial != null && material != null && !switchedMaterials){
-          console.log([material, shaderMaterial]);
+          //console.log([material, shaderMaterial]);
           var tmp = THREE.SceneUtils.createMultiMaterialObject( model[0].geometry, [material, shaderMaterial]);
           //model[0].material = [material, shaderMaterial];
           scene.add(tmp);
@@ -241,6 +302,7 @@ requestAnimationFrame( animate );
 render();
 
 }
+
 function render() {
   var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
   projector.unprojectVector( vector, camera );
@@ -252,6 +314,11 @@ function render() {
       cursor.copy(intersects[i].point);
       cursorPLight.position.copy(intersects[i].point);
       highlighted = true;
+      if(useMagnifyingGlass){
+        magnifyingCube.visible = true;
+        var magnifyerLoc = camera.position;
+        magnifyingCube.position.copy(magnifyerLoc);
+      }
     }
   }
   else{
@@ -282,8 +349,7 @@ function render() {
     }
 
 
-
-    function shaderLoad(uniforms, attributes, vertexshader, fragmentshader){
+    function shaderLoad(model, uniforms, attributes, vertexshader, fragmentshader){
       if(vertexshader == null || fragmentshader == null)
         return;
 
@@ -293,6 +359,29 @@ function render() {
         vertexShader:   vertexshader,
         //fragmentShader: fragmentshader
       });
+var verts =
+  model.geometry.vertices;
+
+var values =
+  attributes.displacement.value;
+
+for(var v = 0; v < verts.length; v++) {
+  values.push(Math.random() * 30);
+}
       return shaderMaterial;
     }
   }
+
+jQuery.fn.extend({ 
+        disableSelection : function() { 
+                return this.each(function() { 
+                        this.onselectstart = function() { return false; }; 
+                        this.unselectable = "on"; 
+                        jQuery(this).css('user-select', 'none'); 
+                        jQuery(this).css('-o-user-select', 'none'); 
+                        jQuery(this).css('-moz-user-select', 'none'); 
+                        jQuery(this).css('-khtml-user-select', 'none'); 
+                        jQuery(this).css('-webkit-user-select', 'none'); 
+                }); 
+        } 
+}); 

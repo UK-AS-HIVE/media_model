@@ -109,8 +109,8 @@ function media_model_field_formatter_info() {
     'label' => t('ThreeJS .OBJ viewer'),
     'field types' => array('file', 'model'),
     'settings' => array(
-      'width' => variable_get('threejs_objloader', '640'),
-      'height' => variable_get('threejs_objloader', '385'),
+      'width' => variable_get('threejs_objloader', '800'),
+      'height' => variable_get('threejs_objloader', '600'),
     ),
   );
 

@@ -1,0 +1,180 @@
+<?php
+
+/**
+ *  Implement hook_menu.
+ */
+/*function media_model_menu()
+{
+  return array(
+    'file/%/3d' => array(
+      'page callback' => 'media_model_modelview',
+      'page arguments' => array(1),
+      'type' => MENU_CALLBACK,
+      'access arguments' => array('access content'),
+    ),
+  );
+}
+
+function media_model_modelview($fid) {
+  return $fid;
+}*/
+
+function media_model_file_view_alter(&$build, $type = 'file') {
+  // check to make sure it's a file type we support
+  if (!isset($build['file']['#file']))
+    return;
+  $filename = $build['file']['#file']->filename;
+  $extension = substr($filename, strlen($filename)-4);
+  if ($extension != '.obj' && $extension != '.md2')
+    return;
+
+  $build['file']['#file']->type = 'model';
+  $build['file']['#theme'] = 'model';
+}
+
+/**
+ * Implements hook_library().
+ */
+/*function media_model_library() {
+  $path = libraries_get_path('GLGE');
+  $libraries = array();
+
+  $libraries['GLGE'] = array(
+    'title' => 'GLGE WebGL Engine',
+    'website' => 'http://glge.org/',
+    'version' => '0.9',
+    'js' => array(
+      // The mediaelement script detects the path to itself to call other files
+      // in the same location. With preprocessing this is problematic as the
+      // script is no longer in the same directory as its other assets. There
+      // is an option that can be passed into the script with its location.
+      // @todo Update all calls to mediaelement to pass in the assets location.
+      $path . '/glge-compiled.js' => array('group' => JS_LIBRARY, 'preprocess' => FALSE),
+    ),
+  );
+  return $libraries;
+}*/
+
+/**
+ * Implements hook_file_type_info().
+ */
+/*function media_model_file_type_info() {
+  return array(
+    'model_obj' => array(
+      'label' => t('3D Model in .OBJ format'),
+      'description' => t('A static polygonal 3D model'),
+      'claim callback' => 'media_model_file_type_model_claim',
+      'default view callback' => 'media_model_file_type_model_default_view',
+      'weight' => -1000,
+    ),
+  );
+}
+
+function media_model_file_type_model_claim($file, $type) {
+  dpm($file);
+  return TRUE;
+}
+
+function media_model_file_type_model_default_view($file, $view_mode, $langcode) {
+  dpm($file);
+  return array(
+    '#type' => 'model',
+    '#title' => $file->filename . ' NOAHTESTING',
+    '#href' => file_create_url($file->uri),
+  );
+}*/
+
+/**
+ * Implements hook_file_formatter_info().
+ */
+function media_model_file_formatter_info() {
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function media_model_field_formatter_info() {
+  $formatters = array();
+/*
+  $formatters['glge_objloader'] = array(
+    'label' => t('GLGE Wavefront .OBJ viewer'),
+    'field types' => array('file', 'model'),
+    'settings' => array(
+      'width' => variable_get('glge_objloader', '640'),
+      'height' => variable_get('glge_objloader', '385'),
+    ),
+  );*/
+
+    $formatters['threejs_objloader'] = array(
+    'label' => t('ThreeJS .OBJ viewer'),
+    'field types' => array('file', 'model'),
+    'settings' => array(
+      'width' => variable_get('threejs_objloader', '640'),
+      'height' => variable_get('threejs_objloader', '385'),
+    ),
+  );
+
+  return $formatters;
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+/*function media_model_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  //dpm($entity);
+  //dpm($display);
+  //dpm($items);
+  $element = array();
+
+  foreach ($items as $delta => $item) {
+    $settings = $display['settings'];
+    if ($display['type'] == 'glge_objloader') {
+      dpm($item);
+      $element[$delta] = array(
+        '#theme' => 'model',
+        '#file' => $item,
+      );
+    }
+  }
+
+  return $element;
+}*/
+
+/**
+ * Implements hook_theme().
+ */
+function media_model_theme($existing) {
+  //dpm($existing);
+  return array(
+    'model' => array(
+      /*'variables' => array(
+        'attributes' => array(), 
+        'settings' => array(),
+      ),*/
+      'render element' => 'element',
+    ),
+  );
+}
+
+function theme_model($variables) {
+  //dpm($variables);
+  //drupal_set_message('<pre>theme_model variables: ' . print_r($variables, 1) . '</pre>');
+  //return 'GLGE';
+  // unique id per instance 
+  static $id=0;
+  $objPath = file_create_url($variables['element']['#file']->uri); 
+  $nrmPath = substr($objPath, 0, strlen($objPath)-4);
+  $mediaPath = drupal_get_path('module', 'media_model');
+  drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
+  drupal_add_js(libraries_get_path('threejs') . '/examples/js/libs/Tween.js', 'file');
+  drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
+  drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
+  drupal_add_js(libraries_get_path('threejs') . '/examples/js/Detector.js', 'file');
+  drupal_add_js($mediaPath . '/media_model_threejs.js', 'file');
+  drupal_add_js('
+   function loadModel(){
+    media_model_viewer("' . $objPath. '", "' . $objPath . '.mtl", "' . $nrmPath . '_Normal.jpg", ' . $variables['element']['#file']->fid . ');
+   }
+   window.onload = loadModel;
+   ', 'inline');
+}

@@ -1,9 +1,31 @@
 var objPath, mtlPath, fileId;
 
 function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
-	var container;
+	var viewport, container;
+	var pathControls,
+		path = {
+		markers: [],
+		distance: {
+			element: document.createTextNode( 'unknown' ),
+			value: 0,
+		},
+		 markerGeometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ),
+		 markerMaterial: new THREE.MeshLambertMaterial( { color : 0x0000FF } ),
+		 lineGeometry: new THREE.Geometry(),
+		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0x00FF00 } ) )
+		};
+	path.lineRibbon.geometry = path.lineGeometry;
+	path.markerGeometry.computeBoundingSphere();
 
-	var camera, cameraUpMotion, cameraSideMotion;
+	var camera;
+	var camComponents = {
+	 	up: new THREE.Vector3(),
+	 	right: new THREE.Vector3(),
+	 	hDegs: 0,
+	 	vDegs: 0,
+	 	radius: 0,
+	 	start: new THREE.Vector3() };
+
 	var dirLight = new THREE.DirectionalLight( 0xC8B79D );
 	var cursorPLight = new THREE.PointLight( 0xffffff, 1, 1000 );
 	var scene, projector, renderer, cursor, highlighted = false;
@@ -16,9 +38,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 	var windowHalfX = windowWidth / 2;
 	var windowHalfY = windowHeight / 2;
 	var model = [];
-	var material;
 	var rotating = false;
-	var ori2, ori2d;
 
 	init();
 	animate();
@@ -26,13 +46,27 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 	var point1Marker;
 	var point2Marker;
 	var cursorPyr;//, something;
-	function init(){
+	var avgPos;
 
+	function init(){
 		// place our div inside of the parent file-nameed div
-		container = document.createElement( 'threejs-model' );
+		container = document.createElement( 'div' );
+		container.id = 'model-viewer-wrapper';
+		viewport = document.createElement( 'div' );
+		pathControls = document.createElement( 'div' );
+		pathControls.style.overflow = 'hidden';
 		var parent = document.getElementById( 'file-'.concat(fileId) );
 		parent.appendChild( container );
-		jQuery(container).bind('click mouseup mousedown', function(e) {
+		container.appendChild( viewport );
+		viewport.style.cssFloat = 'left';
+		console.log(viewport);
+		container.appendChild( pathControls );
+		pathControls.appendChild(document.createTextNode( 'Path distance: \n' ));
+		pathControls.appendChild(path.distance.element);
+		pathControls.appendChild(document.createTextNode( '\n' ));
+		pathControls.appendChild(document.createTextNode( 'Marker list: \n' ));
+
+		jQuery(viewport).bind('click mouseup mousedown', function(e) {
 			if(e.which == 2 || e.which == 1){
 				e.preventDefault();
 				//e.stopPropagation();
@@ -42,13 +76,15 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 			return e;
 		});
 
-		// create camera and position it in scene
-		camera = new THREE.PerspectiveCamera( 45, windowWidth / windowHeight, 1, 2000 );
-		camera.position.z = rotRadius;
 		//camera.far = 5;
 
 		// create scene and establish lighting
 		scene = new THREE.Scene();
+
+		// create camera and position it in scene
+		camera = new THREE.PerspectiveCamera( 45, windowWidth / windowHeight, 1, 2000 );
+		camera.position.z = rotRadius;
+		scene.add( camera );
 
 		// one ambient light of darkish color
 		var ambient = new THREE.AmbientLight( 0x130d00 );
@@ -61,143 +97,166 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 
 		projector = new THREE.Projector();
 
-		material = mtlPath;
-
 		var loader = new THREE.OBJMTLLoader();
 		loader.addEventListener( 'load', function ( event ) {
 			var tmp = event.content;
+			console.log(tmp);
 			// because sometimes the .obj seems to contain multiple models
 			// TODO: combine all models which are loaded in 
 			for( var i = 0; i<tmp.children.length; i++ ){
 				model.push( tmp.children[i] );
 				model[i].name = "model";
 				// we enable flipSided and doubleSided to try to render the back of our model
-				// but this doesn't appear to be working
-				model[i].flipSided = true;
-				model[i].doubleSided = true;
-				model[i].matrixAutoUpdate = false;
-				// we noticed no change in behavior by disabling these three calls
-				//model[i].geometry.computeCentroids();
-				//model[i].geometry.computeFaceNormals();
-				//model[i].geometry.computeVertexNormals();
-				scene.add( model[i] );
+				//model[i].flipSided = true;
+				//model[i].doubleSided = true;
+        model[i].material.side = THREE.DoubleSide;
+
+				console.log('Successfully loaded model portion ' + i + ', with ' + model[i].geometry.vertices.length +' vertices and ' + model[i].geometry.faces.length + ' faces.');
+				model[i].geometry.computeBoundingSphere();
+				model[i].geometry.computeBoundingBox();
+				console.log('Bounding sphere radius of the geometry is ' + model[i].geometry.boundingSphere.radius);
+				//model[i].material = new THREE.MeshLambertMaterial( { color : 0xFF0000 } );
+				/*
+				avgPos = new THREE.Vector3();
+				for(var j = 0; j<model[i].geometry.faces.length; j++){
+					avgPos.addSelf(model[i].geometry.faces[j].centroid);
+				}
+				avgPos.multiplyScalar(1.0/model[i].geometry.faces.length);
+				*/
+				avgPos = new THREE.Vector3()
+					.copy(model[i].geometry.boundingBox.min)
+					.add(model[i].geometry.boundingBox.max)
+					.multiplyScalar(0.5)
+					.negate();
+				console.log('Center point (of bounding box) is away from the origin by ' + avgPos.x + ', ' + avgPos.y + ', ' + avgPos.z);
+
+				//this is to try to move the center to the right place
+				model[i].geometry.applyMatrix(new THREE.Matrix4().makeTranslation(avgPos.x, avgPos.y, avgPos.z));
+
+				//model[i].translate(avgPos.length(), avgPos.negate());
+				scene.add(model[i]);
+
+				var ray = new THREE.Raycaster(camera.position, new THREE.Vector3(0,0,-1), 0, camera.position.distanceTo( model[i].position )*2 );
+				if(ray.intersectObjects( model ).length==0)
+					model[i].applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
+
+
 			}
 			cursor = new THREE.Vector3( model[0].position.x, model[0].position.y, model[0].position.y );
 		});
 		loader.load( objPath, mtlPath );
 
+
 		// markers are pyramids which will point to the location on the surface selected by the user
-		point1Marker = new THREE.Mesh( new THREE.CylinderGeometry( 0, 1, 4, 4, false ), new THREE.MeshLambertMaterial( { color : 0x0000FF } ) );
-		point2Marker = new THREE.Mesh( new THREE.CylinderGeometry( 0, 1, 4, 4, false ), new THREE.MeshLambertMaterial( { color : 0x0000FF } ) );
+		/*
+		point1Marker = new THREE.Mesh( pyramidGeometry, new THREE.MeshLambertMaterial( { color : 0x0000FF } ) );
+		point2Marker = new THREE.Mesh( pyramidGeometry, new THREE.MeshLambertMaterial( { color : 0x0000FF } ) );
 		scene.add( point1Marker );
 		scene.add( point2Marker );
 		// we hide them until points are selected
 		point1Marker.visible = false;
 		point2Marker.visible = false;
+		*/
 
 		// establish another pyramid, to follow the cursor and represent where the markers will appear
-		cursorPyr = new THREE.Mesh( new THREE.CylinderGeometry( 0, 1, 4, 4, false ), new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) );
+		cursorPyr = new THREE.Mesh( path.markerGeometry, new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) );
 		scene.add( cursorPyr );
 				// a small positional light that will hug our cursor and approach the model
 		cursorPyr.add( cursorPLight );
 		cursorPLight.position.y = -10;
-		//something = new THREE.Mesh( new THREE.CylinderGeometry( 0, 3, 4, 4, false ), new THREE.MeshLambertMaterial( { color : 0xFFFFFF } ) );
-		//cursorPyr.add(something);
-		//cursorPLight.position.set( 0, 0, 0 );
-
-		ori2 = new THREE.Mesh(new THREE.CubeGeometry(5, 5, 5, 1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xFFFFFF } ));
-		ori2.position.set( 0, 0, 50);
-		ori2d = 1;
-		camera.add(ori2);
 
 		// establish our renderer
 		renderer = new THREE.WebGLRenderer();
 		renderer.setSize( windowWidth, windowHeight );
 		renderer.setClearColorHex( 0x8e8272, 1 );
 
-		container.appendChild( renderer.domElement );
-		container.addEventListener( 'mousemove', onMouseMove, false );
-		container.addEventListener( 'mousedown', onMouseDown, false );
-		container.addEventListener( 'mouseup', onMouseUp, false );
-		container.addEventListener( 'DOMMouseScroll', onMouseWheel, false );
-		container.addEventListener( 'mousewheel', onMouseWheel, false );
-		container.addEventListener( 'mouseover', onMouseOver, false);
-		container.addEventListener( 'mouseout', onMouseOut, false);
+
+		viewport.appendChild( renderer.domElement );
+		viewport.addEventListener( 'mousemove', onMouseMove, false );
+		viewport.addEventListener( 'mousedown', onMouseDown, false );
+		viewport.addEventListener( 'mouseup', onMouseUp, false );
+		viewport.addEventListener( 'DOMMouseScroll', onMouseWheel, false );
+		viewport.addEventListener( 'mousewheel', onMouseWheel, false );
+		viewport.addEventListener( 'mouseover', onMouseOver, false);
+		viewport.addEventListener( 'mouseout', onMouseOut, false);
+
+		viewport.addEventListener( 'touchstart', touchStart, false);
+		viewport.addEventListener( 'touchmove', touchMove, false);
+		viewport.addEventListener( 'touchend', touchEnd, false);
 	} // end init
 
 	function animate() {
-		// check for points -- display them if they are set
-		if( point1 ){ 
-			point1Marker.visible = true; 
-		}
-		else{ point1Marker.visible = false; }
-		if( point2 ){
-			point2Marker.visible = true;
-		}
-		else{ point2Marker.visible = false; }
-		
-		
-		ori2.position.z += ori2d;
-		if(Math.abs(ori2.position.z)>50){
-			ori2d *= -1;
-			ori2.position.z += ori2d;
-		}
-		camera.lookAt(ori2.position);
-		var worldpos = new THREE.Vector3();
-		worldpos.add(camera.position, ori2.position)
-		camera.lookAt(worldpos);
-		console.log(' position !' + worldpos.x + ', ' + worldpos.y + ', ' + worldpos.z);
 
-		
+
+
 		requestAnimationFrame( animate );
 		render();
 	}
 
-	function render() {
-		// check for cursor going over model
-		var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
-		projector.unprojectVector( vector, camera );
-		var ray = new THREE.Ray(camera.position, vector.subSelf( camera.position ).normalize() );
-		var intersects = ray.intersectObjects( model );
+	var timer = 0;
 
-		if(intersects.length>0){
-			// if we do intersect, we move the cursor to that point and highlight it
-			for( var i = 0; i < intersects.length; i++ ){
-				cursor.copy( intersects[i].point );
+	function render() {
+		//console.log(scene.children);
+		// check for cursor going over model
+		if ( model.length > 0 ){
+			var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
+			projector.unprojectVector( vector, camera );
+			var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize(), 0, camera.position.distanceTo( model[0].position )*2 );
+			var intersects = ray.intersectObjects( model );
+
+			if(intersects.length > 0) {
+				cursor.copy( intersects[0].point );
 				highlighted = true;
 			}
+			else{
+				highlighted = false;
+			}
 		}
-		else{
-			highlighted = false;
-		}
+
 		renderer.render( scene, camera );
 	}
 
-	function onMouseOver( event ){
-		cursorPyr.visible = true;
-	}
-	function onMouseOut( event ){
-		cursorPyr.visible = false;
-	}
-	function onMouseWheel( event ){
-		// don't let the window scroll away!
-		event.preventDefault();
+	function handlePoints() {
+		scene.remove(path.lineRibbon);
+		path.markers.push(
+			{ mesh: new THREE.Mesh(path.markerGeometry, path.markerMaterial),
+				up: new THREE.Vector3()
+			});
+		scene.add(path.markers[path.markers.length - 1].mesh);
+		path.markers[path.markers.length - 1].mesh.position.set(cursor.x, cursor.y, cursor.z);
+		path.markers[path.markers.length - 1].up = orientPyramid(path.markers[path.markers.length - 1].mesh);
+		if( path.markers.length > 1)
+			path.distance.value += path.markers[path.markers.length - 1].mesh.position.distanceTo(path.markers[path.markers.length - 2].mesh.position);
+		path.distance.element.nodeValue = '' + path.distance.value + '\n';
 
+		path.lineGeometry.vertices.push( new THREE.Vector3().copy(cursor) );
+		path.lineGeometry.vertices.push( new THREE.Vector3().copy(cursor).sub(path.markers[path.markers.length - 1].up));
+		path.lineRibbon = new THREE.Ribbon(path.lineGeometry, path.lineRibbon.material);
+		scene.add(path.lineRibbon);
+		model[0].visible = false;
+	}
 
-		// we want a direction vector which points inside from the location of the camera
-		var direction = new THREE.Vector3();
-		direction.copy( cursor );
-		// we use model[0] since it seems to contain "most" of the model data
-		direction.subSelf( camera.position );
-		if((direction.lengthSq() > 100 || event.wheelDelta < 0)
-		 	&& (direction.lengthSq() < 1000000 || event.wheelDelta > 0)) {
-			direction.normalize();
-			direction.multiplyScalar( windowWidth / 100 * event.wheelDelta / ( Math.abs( event.wheelDelta ) ) );
-			camera.position.addSelf(direction);
-		}
+	var lastMouseDown = new Date().getTime();
+	function onMouseDown( event ) {
+		console.log(event);
+	 if( event.which == 1 ){
+		mouse1Down = true;
+			var newMouseDown = new Date().getTime();
+			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
+			if( newMouseDown - lastMouseDown < 250 ){
+				handlePoints();
+			}
+			lastMouseDown =  new Date().getTime();
+		} 
+	}
+	function touchStart ( event ){
+		
 	}
 
 	function onMouseMove( event ) {
+		if ( !event.altKey && rotating ) {
+				rotating = false;
+		}
 		// don't do anything unless we have a model loaded!
 		if( model[0] && !rotating){
 			//var cursorPyrUp = new THREE.Vector3();
@@ -209,6 +268,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 			if( event.which == 1 ){
 				if( event.altKey ) {
 					rotateCameraAroundObject(dy * 0.005, dx * 0.005, cursorPyr);
+					//return;
 				}
 				else{
 					camera.rotation.x += dy * 0.002;
@@ -219,20 +279,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 				//var forwardVector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
 				//projector.unprojectVector(forwardVector, camera);
 				//forwardVector.normalize();
-
-				cameraUpMotion = new THREE.Vector3(0,1,0);
-				rotateVectorByEuler(cameraUpMotion, camera.rotation.x, camera.rotation.y, camera.rotation.z);
-
-
-				cameraSideMotion = new THREE.Vector3(1,0,0);
-				//cameraSideMotion.cross(cameraUpMotion, forwardVector);
-				rotateVectorByEuler(cameraSideMotion, camera.rotation.x, camera.rotation.y, camera.rotation.z);
-
-				cameraSideMotion.multiplyScalar(dx * 0.2);
-				cameraUpMotion.multiplyScalar(dy * 0.2);
-
-				camera.position.addSelf(cameraUpMotion);
-				camera.position.addSelf(cameraSideMotion);
+				panCamera(dx, dy);
 			}
 		}
 		// update our known 2d/3d mouse coordinates
@@ -241,70 +288,53 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		mouse3D.x = ( event.offsetX / windowWidth ) * 2 - 1;
 		mouse3D.y = - ( event.offsetY / windowHeight ) * 2 + 1;
 	}
+	function touchMove ( event ){
+		
+	}
 
-	var lastMouseDown = new Date().getTime();
 	function onMouseUp( event ) {
-		if (event.which === 1 ) {
+
+		if (event.which == 1 ) {
 			if (rotating)
 				rotating = false;
 		}
 	}
-	function onMouseDown( event ) {
-	 if( event.which == 1 ){
-		mouse1Down = true;
-			var newMouseDown = new Date().getTime();
-			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
-			if( newMouseDown - lastMouseDown < 250 ){
-				if( !point1 ){// if no point1, drop point1
-					point1 = new THREE.Vector3(cursor.x, cursor.y, cursor.z);
-					// move a marker to the position
-					point1Marker.position.copy(point1);
-					var point1MarkerUp = new THREE.Vector3();
-					orientPyramid(point1Marker, point1MarkerUp);
-				}
-				else if( !point2 ){// else if no point2, drop point2
-					point2 = new THREE.Vector3( cursor.x, cursor.y, cursor.z );
-					point2Marker.position.copy( point2 );
-					var point2MarkerUp = new THREE.Vector3();
-					orientPyramid( point2Marker, point2MarkerUp );
-					// additionally, we must calculate and display distance
-					var pointsDistance = point1.distanceTo( point2 );
-					distanceText.innerHTML = 'Distance between selected points: ' + pointsDistance;
-					// append this outside of our 3d window
-					container.appendChild(distanceText);
 
-					// create a line to go between the two points
-					// TODO: make this line sit better on the surface of the model
-					var lineGeometry = new THREE.Geometry();
-					lineGeometry.vertices.push( new THREE.Vector3( point1.x, point1.y + 1, point1.z + 1 ) );
-					lineGeometry.vertices.push( new THREE.Vector3( point1.x, point1.y - 1, point1.z - 1 ) );
-					lineGeometry.vertices.push( new THREE.Vector3( point2.x, point2.y + 1, point2.z + 1 ) );
-					lineGeometry.vertices.push( new THREE.Vector3( point2.x, point2.y - 1, point2.z - 1 ) );
-					distanceLine = new THREE.Ribbon( lineGeometry,  new THREE.MeshBasicMaterial( { color: 0x0000FF } ) );
-					scene.add( distanceLine );
-				}
-				else{// else reset
-						point1 = point2 = null;
-						container.removeChild( distanceText );
-						scene.remove( distanceLine );
-				}
-			}
-			lastMouseDown =  new Date().getTime();
-		} 
+	function touchEnd ( event ){
+		
 	}
 
-	distanceText = document.createElement( 'div' );
-	distanceText.style.position = 'absolute';
-	distanceText.style.color = 'rgb(0,255,0)';
-	distanceText.style.left = '25px'; 
-	distanceText.style.top = '50px';
+	function onMouseOver( event ){
+		cursorPyr.visible = true;
+	}
+
+	function onMouseOut( event ){
+		cursorPyr.visible = false;
+	}
+
+	function onMouseWheel( event ){
+		// don't let the window scroll away!
+		event.preventDefault();
+
+		// we want a direction vector which points inside from the location of the camera
+		var direction = new THREE.Vector3();
+		direction.copy( cursor );
+		// we use model[0] since it seems to contain "most" of the model data
+		direction.sub( camera.position );
+		if((direction.lengthSq() > 100 || event.wheelDelta < 0)
+		 	&& (direction.lengthSq() < 1000000 || event.wheelDelta > 0)) {
+			direction.normalize();
+			direction.multiplyScalar( windowWidth / 100 * event.wheelDelta / ( Math.abs( event.wheelDelta ) ) );
+			camera.position.add(direction);
+		}
+	}
+
+
+
 	jQuery(container).disableSelection();
-	jQuery(distanceText).disableSelection();
+
 	var switchedMaterials = true;
-	var point1, point2;
-	var distanceText;
-	var distanceLine;
-	// var frame = 0;
+
 
 	function orientPyramid(pyramid){
 		var closestFaceIndex;
@@ -322,12 +352,13 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		pyramidUp.copy( model[0].geometry.faces[closestFaceIndex].normal );
 		// we cross the up vector with -1,0,0 so the pyramid points in the direction we want it to (on to the model)
 
-		pyramidUp.multiplyScalar( pyramid.boundRadius/2 );
+		pyramidUp.multiplyScalar( pyramid.geometry.boundingSphere.radius/2 );
 		// and add it to the pyramid's position
-		pyramid.position.addSelf( pyramidUp );
+		pyramid.position.add( pyramidUp );
 
 		pyramid.lookAt( cursor );
 		pyramid.rotation.x -= Math.PI/2;
+		return pyramidUp;
 	}
 
 
@@ -335,21 +366,40 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 	var rotationX = new THREE.Matrix4();
 	var translation = new THREE.Matrix4();
 	var translationInverse = new THREE.Matrix4();
-	var matrix = new THREE.Matrix4();
-	function rotateCameraAroundObject(dx, dy, target) {
-		if( !rotating ) {
-			cameraUpMotion = new THREE.Vector3(0,1,0);
-			rotateVectorByEuler(cameraUpMotion, camera.rotation.x, camera.rotation.y, camera.rotation.z);
+	var matrix = new THREE.Matrix4();function rotateCameraAroundObject(dx, dy, target) {
+	
+		/*
+		if(!rotating){
+			camComponents.start.copy( camera.position );
+			camComponents.radius = camera.position.distanceTo( target.position );
 
-			cameraSideMotion = new THREE.Vector3(1,0,0);
-			rotateVectorByEuler(cameraSideMotion, camera.rotation.x, camera.rotation.y, camera.rotation.z);
+			camComponents.vDegs  = Math.acos((camera.position.y - camComponents.start.y)/camComponents.radius)*180/Math.PI;
+			camComponents.hDegs = Math.acos((camera.position.x - camComponents.start.x)/(camComponents.radius * Math.cos(camComponents.vDegs * Math.PI / 180)))*180/Math.PI;
+
+			rotating = true;
 		}
+		camComponents.hDegs -= dy*80;
+		camComponents.vDegs += dx*80;
+		
+		var theta = camComponents.hDegs * Math.PI / 180;
+		var phi = camComponents.vDegs * Math.PI / 180;
 
-		// reset matrix (since we're reusing declared variables)
+		camera.position.x = camComponents.start.x + camComponents.radius * Math.sin( phi ) * Math.cos( theta );
+		camera.position.y = camComponents.start.y + camComponents.radius * Math.cos( phi );
+		camera.position.z = camComponents.start.z + camComponents.radius * Math.sin( phi ) * Math.sin( theta );
+		camera.lookAt( target.position );
+		*/
+		if( !rotating ) {
+			rotating = true;
+		}
+		camComponents.up = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
+		camComponents.right = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
+		
+		/// reset matrix (since we're reusing declared variables)
 		matrix.identity();
 		// rotations based on input
-		rotationX.makeRotationAxis(cameraSideMotion, -dx);
-		rotationY.makeRotationAxis(cameraUpMotion, -dy);
+		rotationX.makeRotationAxis(camComponents.right, -dx);
+		rotationY.makeRotationAxis(camComponents.up, -dy);
 		// translate to and from center point
 		translation.makeTranslation(
 			target.position.x - camera.position.x,
@@ -357,31 +407,57 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 			target.position.z - camera.position.z);
 		translationInverse.getInverse(translation);
 		// translation * rotationX * rotationY * translationInverse
-		matrix.multiplySelf(translation).multiplySelf(rotationX).multiplySelf(rotationY).multiplySelf(translationInverse);
+		matrix.multiply(rotationY).multiply(rotationX);
 		//matrix.multiplySelf(translationInverse);
 		camera.applyMatrix(matrix);
 		camera.lookAt(target.position);
-    	//camera.matrixAutoUpdate = false;
+
+
+
 		//var d2 = camera.position.distanceTo(target.console);
 		//position.log('Distance is ' + d1 + ' before rotation, and ' + d2 + ' after.');
-		rotating = true;
+
+	}
+	function rotateAroundWorldAxis( object, axis, radians ) {
+
+    var rotationMatrix = new THREE.Matrix4();
+
+    rotationMatrix.makeRotationAxis( axis.normalize(), radians );
+    rotationMatrix.multiply( object.matrix );                       // pre-multiply
+    object.matrix = rotationMatrix;
+    object.rotation.setEulerFromRotationMatrix( object.matrix );
+}
+
+	function panCamera(dx, dy) {
+				camComponents.up = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
+				//var upTest = new THREE.Vector3(0,1,0).applyMatrix4(camera.matrixWorld).sub(new THREE.Vector3(0,0,0).applyMatrix4(camera.matrixWorld));
+				//console.log('rotateByEuler gives us ' + camComponents.up.x + ',' + camComponents.up.y + ',' + + camComponents.up.z + ', and new method gives us ' + upTest.x + ',' + upTest.y + ',' + upTest.z);
+
+				camComponents.right = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
+				//cameraSideMotion.cross(cameraUpMotion, forwardVector);
+
+				camComponents.right.multiplyScalar(-dx * 0.2);
+				camComponents.up.multiplyScalar(dy * 0.2);
+
+				camera.position.add(camComponents.up);
+				camera.position.add(camComponents.right);
 	}
 
+	function rotateVectorForObject( vector, matrix){
+		return new THREE.Vector3().copy(vector).applyMatrix4(matrix).sub(new THREE.Vector3(0,0,0).applyMatrix4(matrix));
+	}
 	function rotateVectorByEuler(vector, x, y, z){
 		var axis = new THREE.Vector3(1,0,0);
 		var angle = x;
-		var matrix = new THREE.Matrix4().makeRotationAxis(axis, angle);
-		matrix.multiplyVector3(vector);
+		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(axis, angle) );
 		axis.x = 0;
 		axis.y = 1;
 		angle = y;
-		matrix = new THREE.Matrix4().makeRotationAxis(axis, angle);
-		matrix.multiplyVector3(vector);
+		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(axis, angle) );
 		axis.y = 0;
 		axis.z = 1;
 		angle = z;
-		matrix = new THREE.Matrix4().makeRotationAxis(axis, angle);
-		matrix.multiplyVector3(vector);
+		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(axis, angle) );
 		vector.x *= -1;
 		vector.y *= -1;
 	}
@@ -390,7 +466,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 
 // we use this to prevent selection of our distance text
 // highlighting text would prevent functionality
-
 jQuery.fn.extend({ 
 	disableSelection : function() { 
 		return this.each(function() { 

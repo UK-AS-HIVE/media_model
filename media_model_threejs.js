@@ -1,20 +1,30 @@
 var objPath, mtlPath, fileId;
 
-function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
-	var viewport, container;
-	var pathControls,
+var pValues = location.search.replace('?', '').split(',');
+if(pValues[pValues.length-1]=='')
+	pValues.pop();
+else if(pValues.length%3!=0)
+	pValues=0;
+
+
+function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
+	var viewport, container, ul, distancesLayer;
+	var pathControls, markerRoot = new THREE.Object3D(),
 		path = {
 		markers: [],
+		colorID: [],
+		ui: [],
+		distances: [],
 		distance: {
-			element: document.createTextNode( 'unknown' ),
+			element: document.createElement( 'div' ),
 			value: 0,
 		},
 		 markerGeometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ),
-		 markerMaterial: new THREE.MeshLambertMaterial( { color : 0x0000FF } ),
-		 lineGeometry: new THREE.Geometry(),
-		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0x00FF00 } ) )
+		 markerMaterial: new THREE.MeshPhongMaterial( { color : 0x0000FF } ),
+		 //lineMaterial: new THREE.MeshBasicMaterial( { color: 0x00FF00 } )
+		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, vertexColors: true } ))
 		};
-	path.lineRibbon.geometry = path.lineGeometry;
+	//path.lineRibbon.geometry = path.lineGeometry;
 	path.markerGeometry.computeBoundingSphere();
 
 	var camera;
@@ -30,41 +40,60 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 	var cursorPLight = new THREE.PointLight( 0xffffff, 1, 1000 );
 	var scene, projector, renderer, cursor, highlighted = false;
 
-	var mouse = { x: 0, y: 0 }, INTERSECTED;
-	var mouse3D = { x: 0, y: 0, z: 1 };
-	var rotRadius = 100;
-	var windowWidth = 800;
-	var windowHeight = 600;
-	var windowHalfX = windowWidth / 2;
-	var windowHalfY = windowHeight / 2;
+	var mouse = { x: 0, y: 0 }, INTERSECTED, mouse3D = { x: 0, y: 0, z: 1 };
+
+	var rotRadius = 100, windowWidth = 800, windowHeight = 600, 
+		windowHalfX = windowWidth / 2, windowHalfY = windowHeight / 2;
+	
 	var model = [];
 	var rotating = false;
 
-	init();
+
+	var colors = [
+		0xd10000,
+		0xff6622,
+		0xffda21,
+		0x33dd00,
+		0x1133cc,
+		0x220066,
+		0x330044
+	];
+	var colorAvailable = [ true, true, true, true, true, true, true ];
+
+    init();
 	animate();
 
-	var point1Marker;
-	var point2Marker;
-	var cursorPyr;//, something;
-	var avgPos;
 
 	function init(){
 		// place our div inside of the parent file-nameed div
 		container = document.createElement( 'div' );
 		container.id = 'model-viewer-wrapper';
 		viewport = document.createElement( 'div' );
+		viewport.id = 'model-viewer-viewport';
 		pathControls = document.createElement( 'div' );
-		pathControls.style.overflow = 'hidden';
+		pathControls.id = 'path-controls';
 		var parent = document.getElementById( 'file-'.concat(fileId) );
 		parent.appendChild( container );
 		container.appendChild( viewport );
-		viewport.style.cssFloat = 'left';
 		console.log(viewport);
 		container.appendChild( pathControls );
 		pathControls.appendChild(document.createTextNode( 'Path distance: \n' ));
 		pathControls.appendChild(path.distance.element);
-		pathControls.appendChild(document.createTextNode( '\n' ));
-		pathControls.appendChild(document.createTextNode( 'Marker list: \n' ));
+		path.distance.element.innerHTML = '0';
+		pathControls.appendChild(document.createTextNode( '\nMarker list: \n' ));
+
+		ul = document.createElement( 'ul' );
+		ul.id = 'sortable';
+		pathControls.appendChild(ul);
+		jQuery(function(){
+			jQuery( '#sortable' ).sortable({
+				update: function(event,ui){
+					rebuildPath(ui.item.context.parentNode.children);
+				}
+			});
+			jQuery( '#sortable' ).disableSelection();
+		});
+
 
 		jQuery(viewport).bind('click mouseup mousedown', function(e) {
 			if(e.which == 2 || e.which == 1){
@@ -80,6 +109,9 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 
 		// create scene and establish lighting
 		scene = new THREE.Scene();
+		scene.name = 'scene';
+		scene.add(path.lineRibbon);
+		scene.add(markerRoot);
 
 		// create camera and position it in scene
 		camera = new THREE.PerspectiveCamera( 45, windowWidth / windowHeight, 1, 2000 );
@@ -98,6 +130,8 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		projector = new THREE.Projector();
 
 		var loader = new THREE.OBJMTLLoader();
+		//loader.addEventListener( 'complete', );
+
 		loader.addEventListener( 'load', function ( event ) {
 			var tmp = event.content;
 			console.log(tmp);
@@ -107,9 +141,9 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 				model.push( tmp.children[i] );
 				model[i].name = "model";
 				// we enable flipSided and doubleSided to try to render the back of our model
-				//model[i].flipSided = true;
-				//model[i].doubleSided = true;
-        model[i].material.side = THREE.DoubleSide;
+				model[i].flipSided = true;
+				model[i].doubleSided = true;
+        		//model[i].material.side = THREE.DoubleSide;
 
 				console.log('Successfully loaded model portion ' + i + ', with ' + model[i].geometry.vertices.length +' vertices and ' + model[i].geometry.faces.length + ' faces.');
 				model[i].geometry.computeBoundingSphere();
@@ -143,6 +177,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 
 			}
 			cursor = new THREE.Vector3( model[0].position.x, model[0].position.y, model[0].position.y );
+			loadURLPoints();
 		});
 		loader.load( objPath, mtlPath );
 
@@ -170,6 +205,10 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		renderer.setSize( windowWidth, windowHeight );
 		renderer.setClearColorHex( 0x8e8272, 1 );
 
+		distancesLayer = document.createElement( 'div' );
+		distancesLayer.id = 'distances-layer';
+		viewport.appendChild( distancesLayer );
+
 
 		viewport.appendChild( renderer.domElement );
 		viewport.addEventListener( 'mousemove', onMouseMove, false );
@@ -183,22 +222,122 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		viewport.addEventListener( 'touchstart', touchStart, false);
 		viewport.addEventListener( 'touchmove', touchMove, false);
 		viewport.addEventListener( 'touchend', touchEnd, false);
+
+
+		rebuildPath(ul.children);
 	} // end init
 
+	function loadURLPoints(){
+		if(pValues.length>0){
+			for(var i=0; i<pValues.length; i+=3){
+				addPoint(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
+			}
+		}
+	}
+
+	function removePoint( colorID ){
+		for( var i=0; i<ul.children.length; i++) {
+			if(ul.children[i].id==colorID)
+				ul.removeChild(i);
+		}
+		console.log('Removed ' + colorID + '  from the set.');
+		rebuildPath();
+	}
+
+	function generateURL(){
+		var url = location + '?';
+		for(var i=0; i<path.markers.length; i++) {
+			url += path.markers[i].mesh.position.x.toPrecision(7) + ','
+				+ path.markers[i].mesh.position.y.toPrecision(7) + ',' 
+				+ path.markers[i].mesh.position.z.toPrecision(7) + ',';
+		}
+		return url;
+	}
+
+	function rebuildPath(newOrder){
+		scene.remove(path.lineRibbon);
+		scene.remove(markerRoot);
+		markerRoot = new THREE.Object3D();
+		scene.add(markerRoot);
+
+		//console.log(viewport.hasChildNodes());
+		while(distancesLayer.hasChildNodes()){
+			distancesLayer.removeChild(distancesLayer.lastChild);
+		}
+		var newRibbon = new THREE.Ribbon(new THREE.Geometry(), path.lineRibbon.material);
+		var newMarkers = [];
+		var newDistances = [];
+		var newColorID = [];
+		var oldIndex = -1, newIndex = -1;
+		path.distance.value = 0;
+		for(var i=0; i<newOrder.length; i++) {
+			newMarkers.push(path.markers[path.colorID.indexOf(newOrder[i].id)]);
+			newColorID.push(newOrder[i].id);
+			markerRoot.add(newMarkers[i].mesh);
+			if(i>0) {
+				newDistances.push({
+					value: newMarkers[i-1].mesh.position.distanceTo(newMarkers[i].mesh.position),
+					element: document.createElement( 'div' )
+				});
+				distancesLayer.appendChild(newDistances[i-1].element);
+				newDistances[i-1].element.class = 'floating-distance-text';
+				newDistances[i-1].element.innerHTML = newDistances[i-1].value.toFixed(2);
+				newDistances[i-1].element.style.color = 'rgb(0,255,0)';
+				newDistances[i-1].element.style.position = 'absolute';
+				newDistances[i-1].element.style.fontWeight = 'bold';
+				newDistances[i-1].element.style.fontFamily = 'verdana, sans-serif';
+
+				path.distance.value += newDistances[i-1].value;
+			}
+			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position));
+			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position).add(newMarkers[i].up));
+			newRibbon.geometry.colors.push(new THREE.Color(parseInt(path.colorID[i],16)));
+			newRibbon.geometry.colors.push(new THREE.Color(parseInt(path.colorID[i],16)));
+		}
+		path.distance.element.innerHTML = path.distance.value.toFixed(2) + '\n';
+		repositionDistances();
+		path.lineRibbon = newRibbon;
+		path.markers = newMarkers;
+		path.distances = newDistances;
+		path.colorID = newColorID;
+		//console.log('Old index is ' + oldIndex + ' and new index is ' + newIndex);
+		//repositionDistances(i);
+		scene.add(path.lineRibbon);
+
+		generateURL();
+	}
+
+
 	function animate() {
-
-
 
 		requestAnimationFrame( animate );
 		render();
 	}
 
-	var timer = 0;
+	function repositionDistances() {
+		for(var i=0; i<path.distances.length; i++){
+			positionDistance(i);
+		}
+	}
 
+	function positionDistance(i) {
+		var screenPos = new THREE.Vector3().copy(path.markers[i].mesh.position).add(path.markers[i+1].mesh.position).multiplyScalar(0.5);
+		projector.projectVector( screenPos, camera );
+		screenPos.x = ( screenPos.x * windowHalfX ) + windowHalfX;
+		screenPos.y = - ( screenPos.y * windowHalfY ) + windowHalfY * 1.3;
+		if(screenPos.x > 0 && screenPos.x < windowWidth && screenPos.y > 0 && screenPos.y < windowHeight) {
+			path.distances[i].element.style.left = screenPos.x + 'px';
+			path.distances[i].element.style.top = screenPos.y + 'px';
+			path.distances[i].element.style.visibility = 'visible';
+		}
+		else
+			path.distances[i].element.style.visibility = 'collapse';
+	}
 	function render() {
 		//console.log(scene.children);
 		// check for cursor going over model
 		if ( model.length > 0 ){
+			repositionDistances();
 			var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
 			projector.unprojectVector( vector, camera );
 			var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize(), 0, camera.position.distanceTo( model[0].position )*2 );
@@ -216,35 +355,43 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		renderer.render( scene, camera );
 	}
 
-	function handlePoints() {
-		scene.remove(path.lineRibbon);
-		path.markers.push(
-			{ mesh: new THREE.Mesh(path.markerGeometry, path.markerMaterial),
+
+	function addPoint(location) {
+		var color = colorChooser();
+		var markerMaterial = new THREE.MeshPhongMaterial();
+		markerMaterial.color = color;
+		path.colorID.push( color.getHexString() );
+		path.markers.push( { 	
+				mesh: new THREE.Mesh(path.markerGeometry, markerMaterial),
 				up: new THREE.Vector3()
 			});
-		scene.add(path.markers[path.markers.length - 1].mesh);
-		path.markers[path.markers.length - 1].mesh.position.set(cursor.x, cursor.y, cursor.z);
-		path.markers[path.markers.length - 1].up = orientPyramid(path.markers[path.markers.length - 1].mesh);
-		if( path.markers.length > 1)
-			path.distance.value += path.markers[path.markers.length - 1].mesh.position.distanceTo(path.markers[path.markers.length - 2].mesh.position);
-		path.distance.element.nodeValue = '' + path.distance.value + '\n';
+		var index = path.markers.length-1;
+		markerRoot.add(path.markers[index].mesh);
+		//path.markers[path.markers.length - 1].mesh.position.set(cursor.x, cursor.y, cursor.z);
+		path.markers[index].up = orientPyramid(path.markers[index].mesh, location);
 
-		path.lineGeometry.vertices.push( new THREE.Vector3().copy(cursor) );
-		path.lineGeometry.vertices.push( new THREE.Vector3().copy(cursor).sub(path.markers[path.markers.length - 1].up));
-		path.lineRibbon = new THREE.Ribbon(path.lineGeometry, path.lineRibbon.material);
-		scene.add(path.lineRibbon);
-		model[0].visible = false;
+		var li = document.createElement( 'li' );
+		li.className = 'marker-button';
+		li.id = color.getHexString();
+		//li.innerHTML = "";
+		li.style.backgroundColor = "#" + color.getHexString();
+		li.appendChild(document.createElement('br'));
+		path.ui.push(li);
+		ul.appendChild(li);
+		rebuildPath(ul.children);
+		//scene.add(newLine);
+		//model[0].visible = false;
 	}
 
 	var lastMouseDown = new Date().getTime();
 	function onMouseDown( event ) {
-		console.log(event);
+		//console.log(event);
 	 if( event.which == 1 ){
 		mouse1Down = true;
 			var newMouseDown = new Date().getTime();
 			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
 			if( newMouseDown - lastMouseDown < 250 ){
-				handlePoints();
+				addPoint(cursor);
 			}
 			lastMouseDown =  new Date().getTime();
 		} 
@@ -260,7 +407,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		// don't do anything unless we have a model loaded!
 		if( model[0] && !rotating){
 			//var cursorPyrUp = new THREE.Vector3();
-			orientPyramid( cursorPyr );
+			orientPyramid( cursorPyr, cursor);
 		}
 		if( mouse.x && mouse.y ){
 			var dx = mouse.x - event.offsetX;
@@ -329,24 +476,21 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		}
 	}
 
-
-
 	jQuery(container).disableSelection();
+	jQuery(viewport).disableSelection();
+	jQuery(pathControls).disableSelection();
 
-	var switchedMaterials = true;
-
-
-	function orientPyramid(pyramid){
+	function orientPyramid(pyramid, location){
 		var closestFaceIndex;
 		closestFaceIndex = 0;
 		// iterate over our model's faces to try to locate the nearest centroid
 		for( var i = 1; i < model[0].geometry.faces.length; i++ ){
-			if( cursor.distanceTo(model[0].geometry.faces[closestFaceIndex].centroid) > cursor.distanceTo(model[0].geometry.faces[i].centroid) )
+			if( location.distanceTo(model[0].geometry.faces[closestFaceIndex].centroid) > location.distanceTo(model[0].geometry.faces[i].centroid) )
 				closestFaceIndex = i;
 		}
 		// move pyramid to our cursor's location
 		// pyramid here is most likely cursorPyr
-		pyramid.position.copy( cursor );
+		pyramid.position.copy( location );
 		var pyramidUp = new THREE.Vector3();
 		// begin our up vector as a copy of the closest face's normal
 		pyramidUp.copy( model[0].geometry.faces[closestFaceIndex].normal );
@@ -356,7 +500,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		// and add it to the pyramid's position
 		pyramid.position.add( pyramidUp );
 
-		pyramid.lookAt( cursor );
+		pyramid.lookAt( location );
 		pyramid.rotation.x -= Math.PI/2;
 		return pyramidUp;
 	}
@@ -398,8 +542,8 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		/// reset matrix (since we're reusing declared variables)
 		matrix.identity();
 		// rotations based on input
-		rotationX.makeRotationAxis(camComponents.right, -dx);
-		rotationY.makeRotationAxis(camComponents.up, -dy);
+		rotationX.makeRotationAxis(camComponents.right, dx);
+		rotationY.makeRotationAxis(camComponents.up, dy);
 		// translate to and from center point
 		translation.makeTranslation(
 			target.position.x - camera.position.x,
@@ -436,8 +580,8 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 				camComponents.right = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
 				//cameraSideMotion.cross(cameraUpMotion, forwardVector);
 
-				camComponents.right.multiplyScalar(-dx * 0.2);
-				camComponents.up.multiplyScalar(dy * 0.2);
+				camComponents.right.multiplyScalar(dx * 0.2);
+				camComponents.up.multiplyScalar(-dy * 0.2);
 
 				camera.position.add(camComponents.up);
 				camera.position.add(camComponents.right);
@@ -461,6 +605,21 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId){
 		vector.x *= -1;
 		vector.y *= -1;
 	}
+
+	function colorChooser(color) {
+		for(var i=0; i<colors.length; i++) {
+			if(colorAvailable[i]){
+				colorAvailable[i] = false;
+				return new THREE.Color(colors[i]);
+			}
+		}
+		return new THREE.Color(0xffffff);
+	}
+
+
+	function removeButtonColor(color){
+
+	}
 }
 
 
@@ -479,3 +638,12 @@ jQuery.fn.extend({
 		}); 
 	} 
 }); 
+
+
+
+/*
+var buttonStyle = document.createElement( 'style' );
+buttonStyle.type = 'text/css';
+buttonStyle.innerHTML = "";
+document.getElementsByTagName('head')[0].appendChild(buttonStyle);
+*/

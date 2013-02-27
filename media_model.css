@@ -1,0 +1,46 @@
+#sortable {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+#sortable li {
+ 	margin: 0 3px 3px 3px;
+ 	padding: 0.4em;
+ 	padding-top: 1.5em;
+ 	font-size: 1.4em;
+ 	height: 15px;
+ 	display:block;
+ 	clear:both;
+
+}
+#path-controls { 
+	font-family:Verdana;
+	width: 120px;
+	right: 5px;
+	position: relative;
+	float:right;
+}
+#model-viewer-viewport {
+    float: left;
+}
+.marker-button {
+	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
+	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
+	box-shadow:inset 0px 1px 0px 0px #ffffff;
+	background-color:#ededed;
+	-moz-border-radius:6px;
+	-webkit-border-radius:6px;
+	border-radius:6px;
+	border:1px solid #dcdcdc;
+	display:inline-block;
+	color:#777777;
+	font-family:Verdana;
+	font-size:15px;
+	font-weight:bold;
+	padding:6px 24px;
+	text-decoration:none;
+	text-shadow:1px 1px 0px #ffffff;
+}
+.marker-button:hover {
+	background-color:#dfdfdf;
+}

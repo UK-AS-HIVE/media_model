@@ -165,6 +165,11 @@ function theme_model($variables) {
   $objPath = file_create_url($variables['element']['#file']->uri); 
   $nrmPath = substr($objPath, 0, strlen($objPath)-4);
   $mediaPath = drupal_get_path('module', 'media_model');
+  //drupal_add_library('system', 'ui.draggable');
+  drupal_add_library('system', 'ui.sortable');
+  //drupal_add_js(libraries_get_path('jquery') . '/js/jquery-1.9.1.js');
+  //drupal_add_js(libraries_get_path('jquery') . '/js/jquery-ui-1.10.1.custom.js');
+  drupal_add_css($mediaPath . '/media_model.css');
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');

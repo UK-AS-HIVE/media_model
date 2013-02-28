@@ -9,7 +9,7 @@ else if(pValues.length%3!=0)
 
 function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	var viewport, container, ul, distancesLayer;
-	var pathControls, markerRoot = new THREE.Object3D(),
+	var pathControls, markerRoot = new THREE.Object3D(), URLButton,
 		path = {
 		markers: [],
 		colorID: [],
@@ -66,21 +66,43 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 
 	function init(){
 		// place our div inside of the parent file-nameed div
-		container = document.createElement( 'div' );
-		container.id = 'model-viewer-wrapper';
 		viewport = document.createElement( 'div' );
 		viewport.id = 'model-viewer-viewport';
-		pathControls = document.createElement( 'div' );
-		pathControls.id = 'path-controls';
+
+		container = document.createElement( 'div' );
+		container.id = 'model-viewer-wrapper';
+		container.appendChild( viewport );
+
 		var parent = document.getElementById( 'file-'.concat(fileId) );
 		parent.appendChild( container );
-		container.appendChild( viewport );
-		console.log(viewport);
-		container.appendChild( pathControls );
-		pathControls.appendChild(document.createTextNode( 'Path distance: \n' ));
-		pathControls.appendChild(path.distance.element);
+
+		pathControls = document.createElement( 'div' );
+		pathControls.id = 'model-viewer-path-controls';
+
+		var pathDistanceNode = document.createElement('span');
+		pathDistanceNode.innerHTML = 'Path distance: <br>';
+		pathDistanceNode.className = 'model-viewer-path-control-text';
+		pathControls.appendChild(pathDistanceNode);
+
 		path.distance.element.innerHTML = '0';
-		pathControls.appendChild(document.createTextNode( '\nMarker list: \n' ));
+		path.distance.element.id = 'model-viewer-path-distance';
+		pathControls.appendChild(path.distance.element);
+		container.appendChild( pathControls );
+
+		URLButton = document.createElement( 'button' );
+		URLButton.id = 'model-viewer-generate-url-button';
+		URLButton.innerHTML = 'Generate URL';
+		pathControls.appendChild(URLButton);
+		jQuery('#model-viewer-generate-url-button').click(function () {
+			console.log('clicked me');
+  				window.prompt ('Copy this URL:', generateURL());
+		});
+		pathControls.appendChild(document.createElement('br'));
+
+		var markerListNode = document.createElement('span');
+		markerListNode.innerHTML = 'Marker list: <br>';
+		markerListNode.className = 'model-viewer-path-control-text';
+		pathControls.appendChild(markerListNode);
 
 		ul = document.createElement( 'ul' );
 		ul.id = 'sortable';
@@ -89,6 +111,23 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			jQuery( '#sortable' ).sortable({
 				update: function(event,ui){
 					rebuildPath(ui.item.context.parentNode.children);
+				},
+				out: function(event,ui){
+					console.log(ui.item.context.style.opacity);
+					//removePoint(ui.item.context.id);
+					ui.item.context.style.opacity = 0.4;
+				},
+				over: function(event,ui){
+					ui.item.context.style.opacity = '';
+				},
+				stop: function(event,ui){
+					ui.item.context.style.opacity = '';
+				}
+			});
+			jQuery( '#sortable' ).mouseup(function(event){
+				console.log(event);
+				if(event.target.style.opacity == 0.4){
+					removePoint(event.target.id);
 				}
 			});
 			jQuery( '#sortable' ).disableSelection();
@@ -210,6 +249,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		viewport.appendChild( distancesLayer );
 
 
+
 		viewport.appendChild( renderer.domElement );
 		viewport.addEventListener( 'mousemove', onMouseMove, false );
 		viewport.addEventListener( 'mousedown', onMouseDown, false );
@@ -235,23 +275,14 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		}
 	}
 
-	function removePoint( colorID ){
-		for( var i=0; i<ul.children.length; i++) {
-			if(ul.children[i].id==colorID)
-				ul.removeChild(i);
-		}
-		console.log('Removed ' + colorID + '  from the set.');
-		rebuildPath();
-	}
-
 	function generateURL(){
-		var url = location + '?';
+		var URL = location + '?';
 		for(var i=0; i<path.markers.length; i++) {
-			url += path.markers[i].mesh.position.x.toPrecision(7) + ','
+			URL += path.markers[i].mesh.position.x.toPrecision(7) + ','
 				+ path.markers[i].mesh.position.y.toPrecision(7) + ',' 
 				+ path.markers[i].mesh.position.z.toPrecision(7) + ',';
 		}
-		return url;
+		return URL;
 	}
 
 	function rebuildPath(newOrder){
@@ -271,6 +302,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		var oldIndex = -1, newIndex = -1;
 		path.distance.value = 0;
 		for(var i=0; i<newOrder.length; i++) {
+			//if(newOrder[i].id == '') continue;
 			newMarkers.push(path.markers[path.colorID.indexOf(newOrder[i].id)]);
 			newColorID.push(newOrder[i].id);
 			markerRoot.add(newMarkers[i].mesh);
@@ -280,7 +312,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 					element: document.createElement( 'div' )
 				});
 				distancesLayer.appendChild(newDistances[i-1].element);
-				newDistances[i-1].element.class = 'floating-distance-text';
+				newDistances[i-1].element.className = 'model-viewer-floating-distance-text';
 				newDistances[i-1].element.innerHTML = newDistances[i-1].value.toFixed(2);
 				newDistances[i-1].element.style.color = 'rgb(0,255,0)';
 				newDistances[i-1].element.style.position = 'absolute';
@@ -291,8 +323,8 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			}
 			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position));
 			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position).add(newMarkers[i].up));
-			newRibbon.geometry.colors.push(new THREE.Color(parseInt(path.colorID[i],16)));
-			newRibbon.geometry.colors.push(new THREE.Color(parseInt(path.colorID[i],16)));
+			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
+			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
 		}
 		path.distance.element.innerHTML = path.distance.value.toFixed(2) + '\n';
 		repositionDistances();
@@ -355,6 +387,20 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		renderer.render( scene, camera );
 	}
 
+	function removePoint( colorID ){
+		for( var i=0; i<ul.children.length; i++) {
+			if(ul.children[i].id==colorID){
+				jQuery('#'+colorID).remove();
+    			jQuery('#'+colorID).sortable('destroy'); //call widget-function destroy
+    			jQuery('.ui-sortable-placeholder').remove();
+				colorAvailable[colors.indexOf(parseInt(colorID, 16))] = true;
+				break;
+			}
+		}
+		console.log(ul.children);
+		console.log('Removed ' + colorID + ' from the set.');
+		rebuildPath(ul.children);
+	}
 
 	function addPoint(location) {
 		var color = colorChooser();
@@ -374,7 +420,14 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		li.className = 'marker-button';
 		li.id = color.getHexString();
 		//li.innerHTML = "";
-		li.style.backgroundColor = "#" + color.getHexString();
+		li.style.backgroundColor = '#' + color.getHexString();
+		li.onmouseover = function(event){
+			event.target.style.backgroundColor = adjustColor(event.target.style.backgroundColor, 40);
+		};
+		li.onmouseout = function(event){
+			event.target.style.backgroundColor = adjustColor(event.target.style.backgroundColor, -40);
+		};
+
 		li.appendChild(document.createElement('br'));
 		path.ui.push(li);
 		ul.appendChild(li);
@@ -620,6 +673,16 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	function removeButtonColor(color){
 
 	}
+
+	function adjustColor(color, value) {
+	    var digits = /(.*?)rgb\((\d+), (\d+), (\d+)\)/.exec(color);
+	    
+	    var red = Math.min(parseInt(digits[2])+value,255);
+	    var green = Math.min(parseInt(digits[3])+value,255);
+	    var blue = Math.min(parseInt(digits[4])+value,255);
+	    
+	    return 'rgb(' + red + ', ' + green + ', ' + blue + ')';
+	};
 }
 
 

@@ -3,8 +3,7 @@ var objPath, mtlPath, fileId;
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
 	pValues.pop();
-else if(pValues.length%3!=0)
-	pValues=0;
+
 
 
 function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
@@ -113,7 +112,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 					rebuildPath(ui.item.context.parentNode.children);
 				},
 				out: function(event,ui){
-					console.log(ui.item.context.style.opacity);
+					//console.log(ui.item.context.style.opacity);
 					//removePoint(ui.item.context.id);
 					ui.item.context.style.opacity = 0.4;
 				},
@@ -180,9 +179,9 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 				model.push( tmp.children[i] );
 				model[i].name = "model";
 				// we enable flipSided and doubleSided to try to render the back of our model
-				model[i].flipSided = true;
-				model[i].doubleSided = true;
-        		//model[i].material.side = THREE.DoubleSide;
+				//model[i].flipSided = true;
+				//model[i].doubleSided = true;
+        		model[i].material.side = THREE.DoubleSide;
 
 				console.log('Successfully loaded model portion ' + i + ', with ' + model[i].geometry.vertices.length +' vertices and ' + model[i].geometry.faces.length + ' faces.');
 				model[i].geometry.computeBoundingSphere();
@@ -216,7 +215,8 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 
 			}
 			cursor = new THREE.Vector3( model[0].position.x, model[0].position.y, model[0].position.y );
-			loadURLPoints();
+			if(pValues.length > 0)
+				loadURLdata();
 		});
 		loader.load( objPath, mtlPath );
 
@@ -263,20 +263,41 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		viewport.addEventListener( 'touchmove', touchMove, false);
 		viewport.addEventListener( 'touchend', touchEnd, false);
 
-
 		rebuildPath(ul.children);
 	} // end init
 
-	function loadURLPoints(){
-		if(pValues.length>0){
-			for(var i=0; i<pValues.length; i+=3){
-				addPoint(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
-			}
+	function loadURLdata() {
+		// you were reodering this function to take input the same way generate generates
+		// gl 
+		var i, loadedCameraMatrix = new THREE.Matrix4();
+		if(pValues[0].indexOf('cam=') != -1) {
+			loadedCameraMatrix = new THREE.Matrix4();
+			pValues[0] = pValues[0].substr(pValues[0].indexOf('=')+1);
+			for(i=0; i<pValues.length; i++) {
+				if(pValues[i].indexOf('markers=') != -1) {
+					pValues[i] = pValues[i].substr(pValues[i].indexOf('=')+1);
+					break;
+				}
+				else
+					loadedCameraMatrix.elements[i]=parseFloat(pValues[i++]);	
+			camera.matrix.identity();
+			camera.applyMatrix(loadedCameraMatrix);
+		}
+		while(i<pValues.length) {
+			addPoint(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
+			i+=3;
+		}
+			//camera.matrixWorld = loadedCameraMatrix;
+			//camera.applyMatrix(matrix);
 		}
 	}
 
 	function generateURL(){
-		var URL = location + '?';
+		var URL = location.origin + location.pathname + '?' + 'cam=';
+		for(var i=0; i<16; i++) {
+			URL += camera.matrixWorld.elements[i].toPrecision(7) + ',';
+		}
+		URL += 'markers=';
 		for(var i=0; i<path.markers.length; i++) {
 			URL += path.markers[i].mesh.position.x.toPrecision(7) + ','
 				+ path.markers[i].mesh.position.y.toPrecision(7) + ',' 
@@ -336,7 +357,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		//repositionDistances(i);
 		scene.add(path.lineRibbon);
 
-		generateURL();
+		currentURL = generateURL();
 	}
 
 
@@ -383,7 +404,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 				highlighted = false;
 			}
 		}
-
 		renderer.render( scene, camera );
 	}
 
@@ -404,6 +424,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 
 	function addPoint(location) {
 		var color = colorChooser();
+		if(color==false) return;
 		var markerMaterial = new THREE.MeshPhongMaterial();
 		markerMaterial.color = color;
 		path.colorID.push( color.getHexString() );
@@ -644,17 +665,9 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		return new THREE.Vector3().copy(vector).applyMatrix4(matrix).sub(new THREE.Vector3(0,0,0).applyMatrix4(matrix));
 	}
 	function rotateVectorByEuler(vector, x, y, z){
-		var axis = new THREE.Vector3(1,0,0);
-		var angle = x;
-		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(axis, angle) );
-		axis.x = 0;
-		axis.y = 1;
-		angle = y;
-		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(axis, angle) );
-		axis.y = 0;
-		axis.z = 1;
-		angle = z;
-		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(axis, angle) );
+		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1,0,0), x));
+		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,1,0), y));
+		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,0,1), z));
 		vector.x *= -1;
 		vector.y *= -1;
 	}
@@ -666,7 +679,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 				return new THREE.Color(colors[i]);
 			}
 		}
-		return new THREE.Color(0xffffff);
+		return false;
 	}
 
 

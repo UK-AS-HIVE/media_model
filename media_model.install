@@ -26,3 +26,68 @@ function media_model_install() {
   field_bundle_settings('file', $name, $bundle_settings);
 }
 
+function media_model_schema() {
+  $schema['media_model_notes'] = array(
+    'description' => 'Table for server saved notes.',
+     'fields' => array(
+        'noteid' => array(
+          'description' => 'Primary identifier for a note',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ),
+        'source_fid' => array(
+          'description' => 'File on which this note belongs',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ),
+        'notes' => array(
+          'description' => 'Commentary regarding the object',
+          'type' => 'text',
+          'size' => 'normal',
+          'not null' => FALSE,
+        ),
+        'cam' => array(
+          'description' => 'Camera information for note',
+          'type' => 'text',
+          'size' => 'normal',
+          'not null' => FALSE,
+        ),
+        'pts' => array(
+          'description' => 'Point information for note',
+          'type' => 'text',
+          'size' => 'normal',
+          'not null' => FALSE,
+        ),
+        'created' => array(
+          'description' => 'The Unix timestamp when the media derivative was created.',
+          'type' => 'int',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+        'changed' => array(
+          'description' => 'The Unix timestamp when the media derivative was most recently saved.',
+          'type' => 'int',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+      ),
+      'indexes' => array(
+        'derivative_changed' => array('changed'),
+        'derivative_created' => array('created'),
+      ),
+      'unique keys' => array(
+        'noteid__source_fid' => array('noteid', 'source_fid'),
+      ),
+      'foreign keys' => array(
+        'related_file' => array(
+          'table' => 'related_file',
+          'columns' => array('source_fid' => 'fid'),
+        ),
+      ),
+      'primary key' => array('noteid'),
+    );
+
+  return $schema;
+}

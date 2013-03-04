@@ -175,9 +175,127 @@ function theme_model($variables) {
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
   drupal_add_js($mediaPath . '/media_model_threejs.js', 'file');
   drupal_add_js('
+   var currentURL = "";
    function loadModel(){
     media_model_viewer("' . $objPath. '", "' . $objPath . '.mtl", "' . $nrmPath . '_Normal.jpg", ' . $variables['element']['#file']->fid . ');
    }
    window.onload = loadModel;
    ', 'inline');
+}
+
+function media_model_create_note($file, $notes, $cam, $markers) {
+  global $user;
+
+  // Create derivative object.
+  $note = new stdClass;
+  $note->source_fid = $file->fid;
+  $note->notes = $notes;
+  $note->cam = $cam;
+  $note->markers = $markers;
+
+  return media_model_note_save($note);
+}
+
+function media_model_note_save($note){
+  $transaction = db_transaction();
+
+  try {
+    // Check if this is new.
+    $new = !isset($note->noteid);
+
+    // Set created time if new.
+    if ($new) {
+      $note->created = REQUEST_TIME;
+    }
+
+    // Always update changed time.Enter description here ...
+    $note->changed = REQUEST_TIME;
+
+    // Write to DB.
+    if ($new) {
+      drupal_write_record('media_notes', $note);
+    }
+    else {
+      drupal_write_record('media_notes', $note, 'noteid');
+    }
+
+    // Return media note object for saved item.
+    return media_model_notes_load($note->noteid);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog_exception('media_notes', $e);
+    throw $e;
+  }
+}
+
+function media_model_notes_load($noteid) {
+  $notes = media_model_notes_load_multiple(array($noteid));
+
+  return $notes[$noteid];
+}
+
+function media_model_notes_load_multiple($noteids) {
+  $notes = array();
+
+  foreach ($noteids as $noteid) {
+    $note = db_select('media_notes', 'mn')
+      ->fields('mn')
+      ->condition('noteid', $noteid)
+      ->execute()
+      ->fetchObject();
+
+    $notes[$note->noteid] = $note;
+  }
+
+  return $notes;
+}
+
+function media_model_form($form, &$form_state) {
+
+  //options for cam and points
+  $form['note'] = array(
+    '#type' => 'textarea', 
+    '#title' => 'Note:',
+    '#required' => TRUE, //make this field required 
+  );
+
+  $form['cam'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Save camera'),
+  );
+
+  $form['markers'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Save markers'),
+  );
+
+  $form['submit_button'] = array(
+    '#type' => 'submit',
+    '#value' => t('Click here!'),
+  );
+
+  return $form;
+}
+
+function media_model_form_validate($form, &$form_state) {
+    
+}
+
+function media_model_form_submit($form, &$form_state) {
+
+}
+
+function media_model_menu() {
+  $items = array();
+
+  $items['media_model/notes/form'] = array( 
+    'title' => 'Make a note about this model', 
+    'description' => 'A form to create notes for model',
+    'page callback' => 'drupal_get_form', 
+    'page arguments' => array('media_model_form'), 
+    'access callback' => TRUE
+  );
+
+  return $items;
 }

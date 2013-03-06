@@ -42,7 +42,7 @@ function media_model_schema() {
           'unsigned' => TRUE,
           'not null' => TRUE,
         ),
-        'notes' => array(
+        'note' => array(
           'description' => 'Commentary regarding the object',
           'type' => 'text',
           'size' => 'normal',
@@ -50,15 +50,17 @@ function media_model_schema() {
         ),
         'cam' => array(
           'description' => 'Camera information for note',
-          'type' => 'text',
-          'size' => 'normal',
+          'type' => 'blob',
+          'size' => 'big',
           'not null' => FALSE,
+          'serialize' => TRUE,
         ),
-        'pts' => array(
+        'markers' => array(
           'description' => 'Point information for note',
-          'type' => 'text',
-          'size' => 'normal',
+          'type' => 'blob',
+          'size' => 'big',
           'not null' => FALSE,
+          'serialize' => TRUE,
         ),
         'created' => array(
           'description' => 'The Unix timestamp when the media derivative was created.',

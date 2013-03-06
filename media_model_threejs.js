@@ -4,11 +4,9 @@ var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
 	pValues.pop();
 
-
-
-function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
-	var viewport, container, ul, distancesLayer;
-	var pathControls, markerRoot = new THREE.Object3D(), URLButton,
+// moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
+var camera;
+var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 		path = {
 		markers: [],
 		colorID: [],
@@ -23,10 +21,12 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		 //lineMaterial: new THREE.MeshBasicMaterial( { color: 0x00FF00 } )
 		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, vertexColors: true } ))
 		};
+function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
+	var viewport, container, ul, distancesLayer;
+	
 	//path.lineRibbon.geometry = path.lineGeometry;
 	path.markerGeometry.computeBoundingSphere();
 
-	var camera;
 	var camComponents = {
 	 	up: new THREE.Vector3(),
 	 	right: new THREE.Vector3(),
@@ -66,41 +66,59 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	function init(){
 		// place our div inside of the parent file-nameed div
 		viewport = document.createElement( 'div' );
-		viewport.id = 'model-viewer-viewport';
+		viewport.id = 'media-model-viewport';
 
 		container = document.createElement( 'div' );
-		container.id = 'model-viewer-wrapper';
+		container.id = 'media-model-wrapper';
 		container.appendChild( viewport );
 
 		var parent = document.getElementById( 'file-'.concat(fileId) );
 		parent.appendChild( container );
 
 		pathControls = document.createElement( 'div' );
-		pathControls.id = 'model-viewer-path-controls';
+		pathControls.id = 'media-model-path-controls';
 
 		var pathDistanceNode = document.createElement('span');
 		pathDistanceNode.innerHTML = 'Path distance: <br>';
-		pathDistanceNode.className = 'model-viewer-path-control-text';
+		pathDistanceNode.className = 'media-model-path-control-text';
 		pathControls.appendChild(pathDistanceNode);
 
 		path.distance.element.innerHTML = '0';
-		path.distance.element.id = 'model-viewer-path-distance';
+		path.distance.element.id = 'media-model-path-distance';
 		pathControls.appendChild(path.distance.element);
 		container.appendChild( pathControls );
 
 		URLButton = document.createElement( 'button' );
-		URLButton.id = 'model-viewer-generate-url-button';
+		URLButton.className = 'media-model-path-control-button';
+		URLButton.id = 'media-model-generate-url-button';
 		URLButton.innerHTML = 'Generate URL';
 		pathControls.appendChild(URLButton);
-		jQuery('#model-viewer-generate-url-button').click(function () {
-			console.log('clicked me');
-  				window.prompt ('Copy this URL:', generateURL());
+		jQuery('#media-model-generate-url-button')
+			.click(function () {
+  			window.prompt ('Copy this URL:', generateURL());
 		});
+		pathControls.appendChild(document.createElement('br'));
+
+		addNoteButton = document.createElement( 'button' );
+		addNoteButton.className = 'media-model-path-control-button';
+		addNoteButton.id = 'media-model-save-note-button';
+		addNoteButton.innerHTML = 'Save note to server';
+		pathControls.appendChild(addNoteButton);
+		jQuery( '#media-model-save-note-button' )
+      		.click(function() {
+        	jQuery( '#media-model-addnote-form' ).dialog( 'open' );
+      	});
+
+		//addNoteButton = jQuery('.media-model-save-note-button');
+		//addNoteButton.appendTo('#media-model-path-controls');
+		//document.removeChild(addNoteButton);
+		//addNoteButton.addClass('media-model-path-control-button');
+		//addNoteButton.html('Save note to server');
 		pathControls.appendChild(document.createElement('br'));
 
 		var markerListNode = document.createElement('span');
 		markerListNode.innerHTML = 'Marker list: <br>';
-		markerListNode.className = 'model-viewer-path-control-text';
+		markerListNode.className = 'media-model-path-control-text';
 		pathControls.appendChild(markerListNode);
 
 		ul = document.createElement( 'ul' );
@@ -208,7 +226,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 				//model[i].translate(avgPos.length(), avgPos.negate());
 				scene.add(model[i]);
 
-				var ray = new THREE.Raycaster(camera.position, new THREE.Vector3(0,0,-1), 0, camera.position.distanceTo( model[i].position )*2 );
+				var ray = new THREE.Raycaster(camera.position, new THREE.Vector3(0,0,-1));
 				if(ray.intersectObjects( model ).length==0)
 					model[i].applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
 
@@ -248,8 +266,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		distancesLayer.id = 'distances-layer';
 		viewport.appendChild( distancesLayer );
 
-
-
 		viewport.appendChild( renderer.domElement );
 		viewport.addEventListener( 'mousemove', onMouseMove, false );
 		viewport.addEventListener( 'mousedown', onMouseDown, false );
@@ -264,6 +280,11 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		viewport.addEventListener( 'touchend', touchEnd, false);
 
 		rebuildPath(ul.children);
+
+		var modalMessage = document.createElement( 'div' );
+		modalMessage.id = 'modal-message';
+		modalMessage.innerHTML = '&nbsp'
+		container.appendChild(modalMessage);
 	} // end init
 
 	function loadURLdata() {
@@ -292,19 +313,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		}
 	}
 
-	function generateURL(){
-		var URL = location.origin + location.pathname + '?' + 'cam=';
-		for(var i=0; i<16; i++) {
-			URL += camera.matrixWorld.elements[i].toPrecision(7) + ',';
-		}
-		URL += 'markers=';
-		for(var i=0; i<path.markers.length; i++) {
-			URL += path.markers[i].mesh.position.x.toPrecision(7) + ','
-				+ path.markers[i].mesh.position.y.toPrecision(7) + ',' 
-				+ path.markers[i].mesh.position.z.toPrecision(7) + ',';
-		}
-		return URL;
-	}
 
 	function rebuildPath(newOrder){
 		scene.remove(path.lineRibbon);
@@ -333,7 +341,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 					element: document.createElement( 'div' )
 				});
 				distancesLayer.appendChild(newDistances[i-1].element);
-				newDistances[i-1].element.className = 'model-viewer-floating-distance-text';
+				newDistances[i-1].element.className = 'media-model-floating-distance-text';
 				newDistances[i-1].element.innerHTML = newDistances[i-1].value.toFixed(2);
 				newDistances[i-1].element.style.color = 'rgb(0,255,0)';
 				newDistances[i-1].element.style.position = 'absolute';
@@ -393,8 +401,9 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			repositionDistances();
 			var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
 			projector.unprojectVector( vector, camera );
-			var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize(), 0, camera.position.distanceTo( model[0].position )*2 );
-			var intersects = ray.intersectObjects( model );
+			var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
+			var intersects = ray.intersectObjects(model);
+			//console.log(intersects);
 
 			if(intersects.length > 0) {
 				cursor.copy( intersects[0].point );
@@ -468,7 +477,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 				addPoint(cursor);
 			}
 			lastMouseDown =  new Date().getTime();
-		} 
+		}
 	}
 	function touchStart ( event ){
 		
@@ -695,9 +704,48 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	    var blue = Math.min(parseInt(digits[4])+value,255);
 	    
 	    return 'rgb(' + red + ', ' + green + ', ' + blue + ')';
-	};
+	}
 }
 
+function generateURL(){
+	var URL = location.origin + location.pathname + '?' + 'cam=';
+	for(var i=0; i<16; i++) {
+		URL += camera.matrixWorld.elements[i].toPrecision(7) + ',';
+	}
+	URL += 'markers=';
+	for(var i=0; i<path.markers.length; i++) {
+		URL += path.markers[i].mesh.position.x.toPrecision(7) + ','
+			+ path.markers[i].mesh.position.y.toPrecision(7) + ',' 
+			+ path.markers[i].mesh.position.z.toPrecision(7) + ',';
+	}
+	return URL;
+}
+
+function saveNote(formResults){
+	var data = generateURL().replace('cam=', '');
+	data = data.substr(data.indexOf('?')+1).split('markers=');
+
+	fid = location.pathname.substr(location.pathname.lastIndexOf('/')+1)
+
+	jQuery.ajax({
+		type: 'POST',
+		url: '../addnote/add',
+		dataType: 'json',
+		data: {
+			fid: fid,
+			note: formResults.note,
+			cam: (formResults.cam ? data[0] : null),
+			markers: (formResults.markers ? data[1] : null)
+		},
+		success: function(data){
+			console.log(data.status);
+		},
+		complete: function(data){
+			console.log('Successfully sent POST to server');
+			console.log(data);
+		},
+	});
+}
 
 // we use this to prevent selection of our distance text
 // highlighting text would prevent functionality

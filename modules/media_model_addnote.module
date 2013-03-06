@@ -1,0 +1,220 @@
+<?php
+
+function media_model_addnote_menu() {
+  $items = array();
+
+  $items['addnote/add'] = array(
+  	'title' => t('Setting server side knowledge of cam and markers'),
+  	'page callback' => 'media_model_addnote_set_cam_and_markers',
+    'access callback' => TRUE,
+  	'type' => MENU_CALLBACK,
+  );
+/*
+ 
+  $items['addnote/%ctools_js/test'] = array(
+    'title' => 'Modal test',
+    'page callback' => 'media_model_addnote_page',
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+*/
+  $items['addnote/%ctools_js/form'] = array( 
+    'title' => t('Make a note about this model'), 
+    'description' => 'A form to create notes for model',
+    'page callback' => 'media_model_addnote_popup', 
+    'page arguments' => array(1), 
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+/*
+function media_model_addnote_page() {
+  ctools_include('ajax');
+  ctools_include('modal');
+  ctools_modal_add_js();
+  
+  $custom_style = array(
+    'media-model-addnote-style' => array(
+      'modalSize' => array(
+        'type' => 'fixed',
+        'width' => 500,
+        'height' => 350,
+      ),
+      'animation' => 'fadeIn',
+    ),
+  );
+  drupal_add_js($custom_style, 'setting');
+  $output = ctools_modal_text_button(t('Click Here'), 'addnote/nojs/form', 
+                                                        t('Pop me up'), 'ctools-modal-media-model-addnote-style');
+  $output .= '<div id="modal-message">&nbsp</div>';
+  ctools_include('plugins');
+  return $output;
+}
+*/
+function media_model_addnote_set_cam_and_markers() {
+	$data = $_POST;
+	//($file, $notes, $cam, $markers
+	$saved = media_model_create_note(
+		$data->fid,
+		$data->note,
+		$data->cam,
+		$data->markers
+	);
+	dpm($saved);
+	$output = array(
+		'status' => 'success',
+		'sent' => $_POST
+	);
+	drupal_json_output($output);
+	drupal_exit();
+}
+
+
+function media_model_addnote_popup($js = NULL) {
+  if(!$js) {
+    return drupal_get_form('media_model_addnote_form');
+  }
+  ctools_include('modal');
+  ctools_include('ajax');
+  $form_state = array(
+    'title' => t('Add a note'),
+    'ajax' => TRUE,
+  );
+  $output = ctools_modal_form_wrapper('media_model_addnote_form', $form_state);
+  if (!empty($form_state['executed'])) {
+  	ctools_add_js('ajax-responder');
+    // We'll just overwrite the form output if it was successful.
+    $output = array();
+    $output[] = ctools_modal_command_dismiss(t('Success!'));
+    // If you want to leave a message and links:
+    //$output[] = ctools_modal_command_display(t('Login Success'), '<div class="modal-message">Login successful. 
+                      //    <a href="/modal/nojs/test">Go back</a>.</div>');
+  }
+  $output[] = '<script type="text/javascript">
+    (function($){
+    	$(document).ready(function(){
+    		jQuery(\'#edit-data\').val(generateURL().substr(generateURL().indexOf(\'?\')+1));
+    	});
+    }(jQuery))
+  </script>';
+  print ajax_render($output);
+  exit;
+
+}
+function media_model_addnote_form($form, &$form_state) {
+  $form['note_title'] = array(
+  	'#title' => 'text',
+  );
+
+  $form['note'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Leave a description:'),
+  );
+
+  $form['data'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Hidden data:'),
+  );
+
+  $form['camera'] = array(
+  	'#type' => 'checkbox',
+  	'#title' => t('Save camera position'),
+  );
+
+  $form['markers'] = array(
+  	'#type' => 'checkbox',
+  	'#title' => t('Save marker positions'),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+
+  $form['#submit'][] = 'media_model_addnote_submit';
+
+  return $form;
+}
+
+function media_model_addnote_form_submit(&$form, &$form_state) {
+  $form_state['message'] = t('Message: %message', array('%message' => $form_state['values']['text']));
+}
+
+
+/*
+function media_model_addnote($js = NULL, $step = NULL) {
+  
+  $form_info = array(
+    'id' => 'media-model-addnote-form', //form id
+    'path' => "addnote/" . ($js ? 'ajax' : 'nojs') . "/form/%step", //pass the step we're on to the form, step1, step2, ..etc
+    'show trail' => TRUE, //show the breadcrumb / path trail for the forms
+    'show back' => TRUE, //show the back button
+    'show cancel' => TRUE, //show the cancel button
+    'show return' => FALSE, //show the update and return button
+    'next callback' =>  'media_model_wizard_next', //a callback function to run when the next button is called
+    'finish callback' => 'media_model_wizard_finish', //callback when finish button is called
+    'cancel callback' => 'media_model_wizard_cancel', //callback when cancel button is called
+    'order' => array( // this controls order, as well as form labels
+      'step1' => t('Step 1'),
+      'step2' => t('Step 2'),
+    ),
+    'forms' => array( // here we map a step to a form id.
+      'step1' => array( //what we're doing here is telling the wizard when step1 is passed as arg, show the form with form_id d7_poll_step_1
+        'form id' => 'media_model_step_1'
+      ),
+      'step2' => array(
+        'form id' => 'media_model_step_2'
+      ),
+    ),
+  );
+  // Send this all off to our form. This is like drupal_get_form only wizardy.
+  ctools_include('wizard');
+  $form = ctools_wizard_multistep_form($form_info, $step, $form_state);
+  $output = drupal_render($form);
+  
+  return $output;
+}
+
+function media_model_step_1($form, &$form_state) {
+  
+  $form_state['title'] = t('What is awesome in Drupal 7?');
+  
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('What\'s your name?'),
+    '#required' => TRUE,
+  );
+  
+  $form['choices'] = array(
+    '#type' => 'radios',
+    '#title' => t('What is your favourite new Drupal 7 feature?'),
+    '#options' => media_model_options(),
+    '#default_value' => '',
+    '#required' => TRUE,
+  );
+  
+  return $form;
+}
+function media_model_options() {
+  return array(
+    'overlay' => 'The new Admin overlay, toolbar and contextual links',
+    'um' => 'The integrated Update Manager',
+    'files' => 'Being able to have both public and private files',
+    'field' => 'Field API (CCK in core)',
+    'image' => 'Image Styles (ImageCache in core)',
+  );
+}
+
+function media_model_step_2($form, &$form_state) {
+  $form['message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Hey @name, tell us why you chose @choice', array(
+      '@name' => $name, //note that these two variables, $name and $choice is NULL for now
+      '@choice' => $choice,
+    )),
+  );
+  
+  return $form;
+}*/

@@ -13,7 +13,7 @@
  	clear:both;
 
 }
-#model-viewer-path-controls { 
+#media-model-path-controls { 
 	font-family:Verdana;
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
@@ -25,13 +25,13 @@
 	float:right;
 	background-color: #595657;
 }
-#model-viewer-viewport {
+#media-model-viewport {
     float: left;
 }
-#model-viewer-wrapper {
+#media-model-wrapper {
     background-color: #E0E0E0;
 }
-#model-viewer-generate-url-button {
+.media-model-path-control-button {
  	margin: 0 3px 3px 3px;
 	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
 	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
@@ -49,11 +49,14 @@
 	padding:3px 18px;
 	text-decoration:none;
 	text-shadow:1px 1px 0px #ffffff;
+	text-align:center;
+
 }
-#model-viewer-generate-url-button:hover {
+.media-model-path-control-button:hover {
     background-color:#eeeeee;
 	text-shadow:2px 2px 0px #ffffff;
-
+    color:#069cf7;
+    text-decoration:none;
 }
 
 .marker-button {
@@ -79,11 +82,17 @@
 .marker-button:hover {
 	background-color:#dfdfdf;
 }
-.model-viewer-path-control-text {
+.media-model-path-control-text {
     padding: 5px;
     
 }
-#model-viewer-path-distance {
+#media-model-path-distance {
     padding: 5px;
 
+}
+textarea {
+  resize: none;
+}
+.resizable > textarea {
+  resize: both;
 }

@@ -1,0 +1,7 @@
+;$Id$
+
+name = Media Model Addnote
+description = "Extends Media Model module to add notes using Ctools"
+core = 7.x
+dependenceis[] = ctools
+package = Media

@@ -157,6 +157,55 @@ function media_model_theme($existing) {
 }
 
 function theme_model($variables) {
+  drupal_add_library('system', 'ui.dialog');
+  drupal_add_js('
+    jQuery(document).ready(function(){
+      var note = jQuery("#note"),
+        cam = jQuery("#cam"),
+        markers = jQuery("#markers");
+      jQuery( "#media-model-addnote-form" ).dialog({
+        autoOpen: false,
+        height: 300,
+        width: 350,
+        modal: true,
+        buttons: {
+          "Add note": function() {
+              //allFields.removeClass( "ui-state-error" );
+              saveNote({
+                note: note.val(),
+                cam: cam.is(":checked"),
+                markers: markers.is(":checked")
+              });
+              note.val("");
+              //cam.prop("checked", false);
+              //markers.prop("checked", false);
+              jQuery( this ).dialog( "close" );
+          },
+          Cancel: function() {
+            jQuery( this ).dialog( "close" );
+          }
+        },
+        close: function() {
+          //allFields.val( "" ).removeClass( "ui-state-error" );
+        }
+      });
+    })
+  ', 'inline');
+  $output = '
+  <div id="media-model-addnote-form" title="Create new note">
+
+  <form>
+  <fieldset>
+    <label for="note">Note</label>
+    <input type="textarea" name="note" id="note" class="text ui-widget-content ui-corner-all" />
+    <label for="cam">Save camera position</label>
+    <input type="checkbox" name="cam" id="cam" value="" class="text ui-widget-content ui-corner-all" />
+    <label for="markers">Save marker positions</label>
+    <input type="checkbox" name="markers" id="markers" value="" class="text ui-widget-content ui-corner-all" />
+  </fieldset>
+  </form>
+  </div>';
+  ctools_include('plugins');
   //dpm($variables);
   //drupal_set_message('<pre>theme_model variables: ' . print_r($variables, 1) . '</pre>');
   //return 'GLGE';
@@ -181,15 +230,16 @@ function theme_model($variables) {
    }
    window.onload = loadModel;
    ', 'inline');
+  return $output;
 }
 
-function media_model_create_note($file, $notes, $cam, $markers) {
+function media_model_create_note($file, $note, $cam, $markers) {
   global $user;
 
   // Create derivative object.
   $note = new stdClass;
   $note->source_fid = $file->fid;
-  $note->notes = $notes;
+  $note->note = $note;
   $note->cam = $cam;
   $note->markers = $markers;
 
@@ -218,7 +268,7 @@ function media_model_note_save($note){
     else {
       drupal_write_record('media_notes', $note, 'noteid');
     }
-
+    
     // Return media note object for saved item.
     return media_model_notes_load($note->noteid);
   }
@@ -251,51 +301,5 @@ function media_model_notes_load_multiple($noteids) {
   return $notes;
 }
 
-function media_model_form($form, &$form_state) {
 
-  //options for cam and points
-  $form['note'] = array(
-    '#type' => 'textarea', 
-    '#title' => 'Note:',
-    '#required' => TRUE, //make this field required 
-  );
 
-  $form['cam'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Save camera'),
-  );
-
-  $form['markers'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Save markers'),
-  );
-
-  $form['submit_button'] = array(
-    '#type' => 'submit',
-    '#value' => t('Click here!'),
-  );
-
-  return $form;
-}
-
-function media_model_form_validate($form, &$form_state) {
-    
-}
-
-function media_model_form_submit($form, &$form_state) {
-
-}
-
-function media_model_menu() {
-  $items = array();
-
-  $items['media_model/notes/form'] = array( 
-    'title' => 'Make a note about this model', 
-    'description' => 'A form to create notes for model',
-    'page callback' => 'drupal_get_form', 
-    'page arguments' => array('media_model_form'), 
-    'access callback' => TRUE
-  );
-
-  return $items;
-}

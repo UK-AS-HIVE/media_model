@@ -707,7 +707,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	}
 }
 
-function generateURL(){
+function generateURL() {
 	var URL = location.origin + location.pathname + '?' + 'cam=';
 	for(var i=0; i<16; i++) {
 		URL += camera.matrixWorld.elements[i].toPrecision(7) + ',';
@@ -721,22 +721,25 @@ function generateURL(){
 	return URL;
 }
 
-function saveNote(formResults){
-	var data = generateURL().replace('cam=', '');
-	data = data.substr(data.indexOf('?')+1).split('markers=');
+function saveNote(formResults) {
+	var urlData = generateURL().replace('cam=', '');
+	urlData = urlData.substr(urlData.indexOf('?')+1).split('markers=');
 
-	fid = location.pathname.substr(location.pathname.lastIndexOf('/')+1)
+	fid = location.pathname.substr(location.pathname.lastIndexOf('/')+1);
+
+	var data = {
+			fid: fid,
+			text: formResults.text,
+			cam: (formResults.cam ? urlData[0] : null),
+			markers: (formResults.markers ? urlData[1] : null),
+	};
+	console.log(data);
 
 	jQuery.ajax({
 		type: 'POST',
 		url: '../addnote/add',
 		dataType: 'json',
-		data: {
-			fid: fid,
-			note: formResults.note,
-			cam: (formResults.cam ? data[0] : null),
-			markers: (formResults.markers ? data[1] : null)
-		},
+		data: data,
 		success: function(data){
 			console.log(data.status);
 		},

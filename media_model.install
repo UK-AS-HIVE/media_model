@@ -23,16 +23,22 @@ function media_model_install() {
   media_type_save($types['3dmodel']);
   $bundle_settings = field_bundle_settings('file', '3dmodel');
   $bundle_settings['extra_fields']['display']['file']['media_small'] = array('weight' => 0, 'visible' => FALSE);
-  field_bundle_settings('file', $name, $bundle_settings);
+  field_bundle_settings('file', '3dmodel', $bundle_settings);
 }
 
 function media_model_schema() {
   $schema['media_model_notes'] = array(
     'description' => 'Table for server saved notes.',
      'fields' => array(
+        'uid' => array(
+          'description' => 'Owner/creator of this note',
+          'type' => 'int',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
         'noteid' => array(
           'description' => 'Primary identifier for a note',
-          'type' => 'int',
+          'type' => 'serial',
           'unsigned' => TRUE,
           'not null' => TRUE,
         ),
@@ -42,7 +48,13 @@ function media_model_schema() {
           'unsigned' => TRUE,
           'not null' => TRUE,
         ),
-        'note' => array(
+        'title' => array(
+          'description' => 'Title for note regarding the object, used for browsability',
+          'type' => 'varchar',
+          'length' => '32',
+          'not null' => TRUE,
+        ),
+        'text' => array(
           'description' => 'Commentary regarding the object',
           'type' => 'text',
           'size' => 'normal',
@@ -50,17 +62,15 @@ function media_model_schema() {
         ),
         'cam' => array(
           'description' => 'Camera information for note',
-          'type' => 'blob',
-          'size' => 'big',
+          'type' => 'text',
+          'size' => 'tiny',
           'not null' => FALSE,
-          'serialize' => TRUE,
         ),
         'markers' => array(
           'description' => 'Point information for note',
-          'type' => 'blob',
-          'size' => 'big',
+          'type' => 'text',
+          'size' => 'medium',
           'not null' => FALSE,
-          'serialize' => TRUE,
         ),
         'created' => array(
           'description' => 'The Unix timestamp when the media derivative was created.',
@@ -74,12 +84,19 @@ function media_model_schema() {
           'not null' => TRUE,
           'default' => 0,
         ),
+        'submitter_linkblue' => array(
+          'description' => 'linkblue info for submitter',
+          'type' => 'text',
+          'size' => 'tiny',
+          'not null' => FALSE,
+        ),
       ),
       'indexes' => array(
-        'derivative_changed' => array('changed'),
-        'derivative_created' => array('created'),
+        'changed' => array('changed'),
+        'created' => array('created'),
       ),
       'unique keys' => array(
+        'title' => array('title'),
         'noteid__source_fid' => array('noteid', 'source_fid'),
       ),
       'foreign keys' => array(

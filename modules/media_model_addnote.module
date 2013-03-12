@@ -55,14 +55,15 @@ function media_model_addnote_page() {
 */
 function media_model_addnote_set_cam_and_markers() {
 	$data = $_POST;
+	dpm($data);
 	//($file, $notes, $cam, $markers
 	$saved = media_model_create_note(
-		$data->fid,
-		$data->note,
-		$data->cam,
-		$data->markers
+		intval($data['fid']),
+    $data['title'],
+		$data['text'],
+		$data['cam']!='null' ? $data['cam'] : '',
+		$data['markers']!='null' ? $data['markers'] : ''
 	);
-	dpm($saved);
 	$output = array(
 		'status' => 'success',
 		'sent' => $_POST

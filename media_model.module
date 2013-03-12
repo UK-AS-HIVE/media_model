@@ -160,7 +160,8 @@ function theme_model($variables) {
   drupal_add_library('system', 'ui.dialog');
   drupal_add_js('
     jQuery(document).ready(function(){
-      var note = jQuery("#note"),
+      var noteTitle = jQuery("#noteTitle"),
+        noteText = jQuery("#noteText"),
         cam = jQuery("#cam"),
         markers = jQuery("#markers");
       jQuery( "#media-model-addnote-form" ).dialog({
@@ -172,11 +173,13 @@ function theme_model($variables) {
           "Add note": function() {
               //allFields.removeClass( "ui-state-error" );
               saveNote({
-                note: note.val(),
+                title: noteTitle.val(),
+                text: noteText.val(),
                 cam: cam.is(":checked"),
                 markers: markers.is(":checked")
               });
-              note.val("");
+              noteTitle.val("");
+              noteText.val("");
               //cam.prop("checked", false);
               //markers.prop("checked", false);
               jQuery( this ).dialog( "close" );
@@ -196,8 +199,10 @@ function theme_model($variables) {
 
   <form>
   <fieldset>
-    <label for="note">Note</label>
-    <input type="textarea" name="note" id="note" class="text ui-widget-content ui-corner-all" />
+    <label for="noteTitle">Title</label>
+    <input type="textfield" name="noteTitle" id="noteTitle" class="text ui-widget-content ui-corner-all" />
+    <label for="noteText">Note</label>
+    <input type="textarea" name="noteText" id="noteText" class="text ui-widget-content ui-corner-all" maxLength="32" />
     <label for="cam">Save camera position</label>
     <input type="checkbox" name="cam" id="cam" value="" class="text ui-widget-content ui-corner-all" />
     <label for="markers">Save marker positions</label>
@@ -233,15 +238,19 @@ function theme_model($variables) {
   return $output;
 }
 
-function media_model_create_note($file, $note, $cam, $markers) {
+function media_model_create_note($fid, $title, $text, $cam, $markers) {
   global $user;
 
   // Create derivative object.
   $note = new stdClass;
-  $note->source_fid = $file->fid;
-  $note->note = $note;
+  $note->uid = $user->uid;
+  $note->source_fid = $fid;
+  $note->title = $title;
+  $note->text = $text;
   $note->cam = $cam;
   $note->markers = $markers;
+  $note->created = time();
+  $note->changed = time();
 
   return media_model_note_save($note);
 }
@@ -260,21 +269,23 @@ function media_model_note_save($note){
 
     // Always update changed time.Enter description here ...
     $note->changed = REQUEST_TIME;
-
     // Write to DB.
     if ($new) {
-      drupal_write_record('media_notes', $note);
+      dpm($note);
+      drupal_write_record('media_model_notes', $note);
     }
     else {
-      drupal_write_record('media_notes', $note, 'noteid');
+      dpm("else");
+      dpm($note);
+      drupal_write_record('media_model_notes', $note, 'noteid');
     }
-    
+
     // Return media note object for saved item.
     return media_model_notes_load($note->noteid);
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog_exception('media_notes', $e);
+    watchdog_exception('media_model_notes', $e);
     throw $e;
   }
 }
@@ -289,8 +300,8 @@ function media_model_notes_load_multiple($noteids) {
   $notes = array();
 
   foreach ($noteids as $noteid) {
-    $note = db_select('media_notes', 'mn')
-      ->fields('mn')
+    $note = db_select('media_model_notes', 'mmn')
+      ->fields('mmn')
       ->condition('noteid', $noteid)
       ->execute()
       ->fetchObject();
@@ -301,5 +312,25 @@ function media_model_notes_load_multiple($noteids) {
   return $notes;
 }
 
+function media_model_inform_file_object($file) {
+  // Check if has derivatives.
+  if (isset($file->fid)) {
+    $file->media_model_notes['has_notes'] = FALSE;
+    $note = db_select('media_model_notes', 'mmn')
+      ->fields('mmn', array('noteid'))
+      ->condition('source_fid', $file->fid)
+      ->execute();
 
+    while ($noteid = $note->fetchField()) {
+      $note_object = media_model_notes_load($noteid);
+      $file->media_model_notes['notes_list'][$note_object->noteid] = $note_object;
+      $file->media_model_notes['has_notes'] = TRUE;
+    }
+  }
+}
 
+function media_model_file_load($files) {
+  foreach ($files as $key => $file) {
+      media_model_inform_file_object($files[$key]);
+  }
+}

@@ -166,8 +166,8 @@ function theme_model($variables) {
         markers = jQuery("#markers");
       jQuery( "#media-model-addnote-form" ).dialog({
         autoOpen: false,
-        height: 300,
-        width: 350,
+        height: 400,
+        width: 600,
         modal: true,
         buttons: {
           "Add note": function() {
@@ -196,20 +196,38 @@ function theme_model($variables) {
   ', 'inline');
   $output = '
   <div id="media-model-addnote-form" title="Create new note">
-
   <form>
   <fieldset>
     <label for="noteTitle">Title</label>
-    <input type="textfield" name="noteTitle" id="noteTitle" class="text ui-widget-content ui-corner-all" />
+    <input type="textfield" name="noteTitle" id="noteTitle" class="text ui-widget-content ui-corner-all" maxLength="32"  />
     <label for="noteText">Note</label>
-    <input type="textarea" name="noteText" id="noteText" class="text ui-widget-content ui-corner-all" maxLength="32" />
+    <input type="textarea" name="noteText" id="noteText" class="text ui-widget-content ui-corner-all" />
     <label for="cam">Save camera position</label>
     <input type="checkbox" name="cam" id="cam" value="" class="text ui-widget-content ui-corner-all" />
     <label for="markers">Save marker positions</label>
     <input type="checkbox" name="markers" id="markers" value="" class="text ui-widget-content ui-corner-all" />
   </fieldset>
   </form>
-  </div>';
+  </div>
+
+<div id="media-model-loadnote-form" title="Load saved note">
+<div id="media-model-saved-notes-menu">
+ <div class="media-model-saved-notes-submenu">
+  <ul class="media-model-saved-notes-root" id="media-model-saved-notes-root">
+  </ul>
+
+</div>
+</div>
+
+<div id="media-model-load-notes-preview">
+  <p id="media-model-load-notes-title"></p>
+  <p id="media-model-load-notes-note"></p>
+  <p id="media-model-load-notes-contains"></p>
+  <span id="media-model-load-notes-index" />
+</div>
+</div>
+
+  ';
   ctools_include('plugins');
   //dpm($variables);
   //drupal_set_message('<pre>theme_model variables: ' . print_r($variables, 1) . '</pre>');
@@ -227,7 +245,7 @@ function theme_model($variables) {
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
-  drupal_add_js($mediaPath . '/media_model_threejs.js', 'file');
+  drupal_add_js($mediaPath . '/media_model.js', 'file');
   drupal_add_js('
    var currentURL = "";
    function loadModel(){
@@ -235,6 +253,20 @@ function theme_model($variables) {
    }
    window.onload = loadModel;
    ', 'inline');
+
+  $notes = $variables['element']['#file']->media_model_notes['notes_list'];
+  foreach($notes as $note){
+    drupal_add_js('
+        media_model_append_saved_note("' . 
+          $note->title . '","' . 
+          $note->text . '","' .
+          $note->cam . '","' .
+          $note->markers . '","' .
+          $note->noteid .
+        '");
+    ', 'inline');
+  }
+
   return $output;
 }
 
@@ -323,6 +355,7 @@ function media_model_inform_file_object($file) {
 
     while ($noteid = $note->fetchField()) {
       $note_object = media_model_notes_load($noteid);
+
       $file->media_model_notes['notes_list'][$note_object->noteid] = $note_object;
       $file->media_model_notes['has_notes'] = TRUE;
     }

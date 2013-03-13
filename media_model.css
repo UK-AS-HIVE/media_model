@@ -59,7 +59,7 @@
     text-decoration:none;
 }
 
-.marker-button {
+.UNUSED {
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
 	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
@@ -95,4 +95,106 @@ textarea {
 }
 .resizable > textarea {
   resize: both;
+}
+#media-model-loadnote-form {
+	overflow: hidden;
+}
+#media-model-saved-notes-menu {
+	color: #555;
+	margin: 3px -22px 0 0;
+	width: 143px;
+	position: relative;
+	overflow:auto;
+	height: 270px;
+	text-align:left;
+	float: left;
+}
+.media-model-saved-notes-submenu
+{
+	background: #fff;
+	position: absolute;
+	top: -12px;
+	left: -20px;
+	z-index: 100;
+	width: 135px;
+	margin-left: 10px;
+	padding: 0px 0 5px;
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+#media-model-saved-notes-menu li a 
+{
+	color: #555555;
+	display: block;
+	font-family: Verdana;
+	font-weight: bold;
+	padding: 6px 15px;
+	cursor: pointer;
+	text-decoration:none;
+
+}
+#media-model-saved-notes-menu li a:hover
+{
+	background:#155FB0;
+	color: #FFFFFF;
+	text-decoration: none;
+}
+a.media-model-saved-notes-selector 
+{
+	font-size: 11px;
+	line-height: 16px;
+	color: #555;
+	position: absolute;
+	z-index: 110;
+	display: block;
+	padding: 11px 0 0 20px;
+	height: 28px;
+	width: 121px;
+	margin: -11px 0 0 -10px;
+	text-decoration: none;
+	cursor:pointer;
+}
+.media-model-saved-notes-root
+{
+	list-style:none;
+	margin:0px;
+	padding:0px;
+	font-size: 11px;
+	padding: 11px 0 0 0px;
+	border-top:1px solid #dedede;
+}
+#media-model-load-notes-preview
+{
+	margin-left: 25%;
+	padding: 11px 0 0 0px;
+}
+#media-model-load-notes-title
+{
+	font-weight: bold;
+}
+#media-model-load-notes-contains
+{
+	font-size: 10px;
+	font-style:italic;
+}
+#media-model-load-notes-selector
+{
+	border:1px solid #dcdcdc;
+}
+#noteText
+{
+	height: 70px;
+	width: 450px;
+}
+#noteTitle
+{
+	width: 120px;
+}
+
+.marker-button-icon-right {
+   width: 0;
+   height: 0;
+   border-left: 100px solid red;
+   border-top: 50px solid transparent;
+   border-bottom: 50px solid transparent;
 }

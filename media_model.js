@@ -1,4 +1,4 @@
-var objPath, mtlPath, fileId;
+var objPath, mtlPath, fileId, savedNotes = [];
 
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
@@ -21,6 +21,7 @@ var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 		 //lineMaterial: new THREE.MeshBasicMaterial( { color: 0x00FF00 } )
 		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, vertexColors: true } ))
 		};
+
 function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	var viewport, container, ul, distancesLayer;
 	
@@ -98,6 +99,16 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
   			window.prompt ('Copy this URL:', generateURL());
 		});
 		pathControls.appendChild(document.createElement('br'));
+
+		loadNoteButton = document.createElement( 'button' );
+		loadNoteButton.className = 'media-model-path-control-button';
+		loadNoteButton.id = 'media-model-load-note-button';
+		loadNoteButton.innerHTML = 'Load note from server';
+		pathControls.appendChild(loadNoteButton);
+		jQuery( '#media-model-load-note-button' )
+      		.click(function() {
+        	jQuery( '#media-model-loadnote-form' ).dialog( 'open' );
+      	});
 
 		addNoteButton = document.createElement( 'button' );
 		addNoteButton.className = 'media-model-path-control-button';
@@ -402,16 +413,27 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
 			projector.unprojectVector( vector, camera );
 			var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
-			var intersects = ray.intersectObjects(model);
+			var modelIntersects = ray.intersectObjects(model);
+			var markerIntersects = ray.intersectObject(markerRoot, true);
 			//console.log(intersects);
 
-			if(intersects.length > 0) {
-				cursor.copy( intersects[0].point );
+			if(modelIntersects.length > 0
+				&& (markerIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) < markerIntersects[0].point.distanceTo(camera.position))) {
+				cursor.copy( modelIntersects[0].point );
+				cursorPyr.visible = true;
+				highlighted = true;
+			}
+			else if (markerIntersects.length > 0
+				&& (modelIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) > markerIntersects[0].point.distanceTo(camera.position))) {
+				console.log(cursorPyr);
+				cursorPyr.visible = false;
+				cursor.copy( markerIntersects[0].object.position);
 				highlighted = true;
 			}
 			else{
 				highlighted = false;
 			}
+
 		}
 		renderer.render( scene, camera );
 	}
@@ -653,7 +675,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
     rotationMatrix.multiply( object.matrix );                       // pre-multiply
     object.matrix = rotationMatrix;
     object.rotation.setEulerFromRotationMatrix( object.matrix );
-}
+	}
 
 	function panCamera(dx, dy) {
 				camComponents.up = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
@@ -705,6 +727,48 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	    
 	    return 'rgb(' + red + ', ' + green + ', ' + blue + ')';
 	}
+
+	function loadNote(note){
+		var loadedCameraMatrix = new THREE.Matrix4(),
+			cam = note.cam.split(','),
+			markers = note.markers.split(',');
+		if(note.cam != '') {
+			for(var i=0; i<cam.length; i++){
+				loadedCameraMatrix.elements[i]=cam[i];
+			}
+			camera.matrix.identity();
+			camera.applyMatrix(loadedCameraMatrix);
+		}
+		for(var i=0; i<colors.length; i++) {
+			if(!colorAvailable[i])
+				removePoint(colors[i].toString(16));
+		}
+
+		if(note.markers != '') {
+			for(var i=0; i<markers.length; i+=3) {
+				addPoint(new THREE.Vector3(parseFloat(markers[i]), parseFloat(markers[i+1]), parseFloat(markers[i+2])));
+			}
+		}
+	}
+
+	jQuery( '#media-model-loadnote-form' ).dialog({
+		autoOpen: false,
+		height: 400,
+		width: 600,
+		modal: true,
+		buttons: {
+			'Load': function() {
+				if(jQuery('#media-model-load-notes-contains').text()!='No extra data')
+					loadNote(savedNotes[jQuery('#media-model-load-notes-index').attr('class')]);
+				jQuery( this ).dialog( 'close' );
+			},
+			Cancel: function() {
+				jQuery( this ).dialog( 'close' );
+			}
+		},
+		close: function() {
+		}
+	});
 }
 
 function generateURL() {
@@ -729,6 +793,7 @@ function saveNote(formResults) {
 
 	var data = {
 			fid: fid,
+			title: formResults.title,
 			text: formResults.text,
 			cam: (formResults.cam ? urlData[0] : null),
 			markers: (formResults.markers ? urlData[1] : null),
@@ -745,7 +810,6 @@ function saveNote(formResults) {
 		},
 		complete: function(data){
 			console.log('Successfully sent POST to server');
-			console.log(data);
 		},
 	});
 }
@@ -766,7 +830,68 @@ jQuery.fn.extend({
 	} 
 }); 
 
+function media_model_append_saved_note(title, text, cam, markers, noteid){
+	savedNotes.push({
+		title: title,
+		text: text,
+		cam: cam,
+		markers: markers,
+		noteid: noteid
+	});
+}
 
+jQuery(document).ready(function(){
+	for(var i=0; i<savedNotes.length; i++){
+		var li = document.createElement( 'li' );
+		var id = 'media-model-note-' + i;
+		li.id = id;
+		li.innerHTML = '<a href="#">' + savedNotes[i].title + '</a>';
+    //console.log(li);
+    	jQuery('#media-model-saved-notes-root').append(li);
+    	jQuery('#' + id).click(function() {
+    		var index = jQuery(this).attr('id').replace('media-model-note-', '');
+			jQuery('#media-model-load-notes-title').text(savedNotes[index].title);
+			jQuery('#media-model-load-notes-note').text(savedNotes[index].text);
+			jQuery('#media-model-load-notes-contains').text('No extra data');
+			if(savedNotes[index].cam != '' && savedNotes[index].markers != '') {
+				jQuery('#media-model-load-notes-contains').text('Contains camera and marker data');
+			}
+			else if (savedNotes[index].cam != '') {
+				jQuery('#media-model-load-notes-contains').text('Contains camera data');
+			}
+			else if (savedNotes[index].markers != '') {
+				jQuery('#media-model-load-notes-contains').text('Contains marker data');
+			}
+			jQuery('#media-model-load-notes-index').attr('class', index);
+    	});
+    //console.log(jQuery('#media-model-saved-notes-root'));
+	}
+	jQuery('#media-model-saved-notes-selector').click(function() {
+	//	if(jQuery(this).attr('class') == 'hidden') {
+			//jQuery('.media-model-saved-notes-submenu').show();
+			//jQuery(this).attr('class', 'visible'); 
+	//	}
+	//	else {
+	//		jQuery('.media-model-saved-notes-submenu').hide();
+	//		jQuery(this).attr('class', 'hidden'); 
+	//	}
+	});
+	//Mouse click on sub menu
+	jQuery('.media-model-saved-notes-submenu').mouseup(function() {
+		return false
+	});
+
+	//Mouse click on my account link
+	jQuery('#media-model-saved-notes-selector').mouseup(function() {
+		return false
+	});
+
+	//Document Click
+	jQuery(document).mouseup(function() {
+		//jQuery('.media-model-saved-notes-submenu').hide();
+		//jQuery('#media-model-saved-notes-selector').attr('class', 'hidden');
+	});
+});
 
 /*
 var buttonStyle = document.createElement( 'style' );

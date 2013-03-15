@@ -1,4 +1,6 @@
 var objPath, mtlPath, fileId, savedNotes = [];
+var urlCheck = -1;
+var keyInput = null;
 
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
@@ -43,11 +45,22 @@ var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 
 var mouseDown = 0;
 
+var container = document.createElement( 'div' );
+container.id = 'media-model-wrapper';
+container.name = 'Media Model Wrapper';
 //document.addEventListener('mousedown', function(){++mouseDown;}, false);
 //document.addEventListener('mouseup', function(){--mouseDown;}, false);
+function UrlExists(url)
+{
+    var http = new XMLHttpRequest();
+    http.open('HEAD', url, false);
+    http.send();
+    return http.status!=404;
+}
 
-function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
-	var viewport, container, ul, distancesLayer;
+function media_model_viewer(objPath, fileId, mtlPath){
+
+	var viewport, ul, distancesLayer;
 
 	//path.lineRibbon.geometry = path.lineGeometry;
 	path.markerGeometry.computeBoundingSphere();
@@ -81,25 +94,23 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	];
 	var colorAvailable = [ true, true, true, true, true, true, true ];
 
-    init();
+	
+	init();
 	animate();
 
-
 	function init(){
+
+		var parent = document.getElementById( 'file-'.concat(fileId) );
+		parent.appendChild( container );
+
 		helpOverlay = document.getElementsByClassName('media-model-help-overlay')[0];
 		// place our div inside of the parent file-nameed div
 		viewport = document.createElement( 'div' );
 		viewport.id = 'media-model-viewport';
 		viewport.name = 'Media Model Viewport';
 		viewport.appendChild( helpOverlay );
-
-		container = document.createElement( 'div' );
-		container.id = 'media-model-wrapper';
-		container.name = 'Media Model Wrapper';
+		
 		container.appendChild( viewport );
-
-		var parent = document.getElementById( 'file-'.concat(fileId) );
-		parent.appendChild( container );
 
 		pathControls = document.createElement( 'div' );
 		pathControls.id = 'media-model-path-controls';
@@ -211,7 +222,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		scene.add( camera );
 
 		controls = new THREE.MediaModelControls( camera, viewport );
-		controls.addEventListener( 'change', render );	
+		controls.addEventListener( 'change', render, false);	
 
 		// one ambient light of darkish color
 		var ambient = new THREE.AmbientLight( 0x130d00 );
@@ -222,60 +233,67 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		dirLight.parent = camera;
 		scene.add( dirLight );
 
+console.log("1");
 		projector = new THREE.Projector();
+var loader = new THREE.OBJMTLLoader();
+			//loader.addEventListener( 'complete', );
 
-		var loader = new THREE.OBJMTLLoader();
-		//loader.addEventListener( 'complete', );
+			loader.addEventListener( 'load', function ( event ) {
+				var tmp = event.content;
+				console.log(tmp);
+				// because sometimes the .obj seems to contain multiple models
+				// TODO: combine all models which are loaded in 
+				for( var i = 0; i<tmp.children.length; i++ ){
+					model.push( tmp.children[i] );
+					model[i].name = "model";
+					// we enable flipSided and doubleSided to try to render the back of our model
+					//model[i].flipSided = true;
+					//model[i].doubleSided = true;
+	        		model[i].material.side = THREE.DoubleSide;
 
-		loader.addEventListener( 'load', function ( event ) {
-			var tmp = event.content;
-			console.log(tmp);
-			// because sometimes the .obj seems to contain multiple models
-			// TODO: combine all models which are loaded in 
-			for( var i = 0; i<tmp.children.length; i++ ){
-				model.push( tmp.children[i] );
-				model[i].name = "model";
-				// we enable flipSided and doubleSided to try to render the back of our model
-				//model[i].flipSided = true;
-				//model[i].doubleSided = true;
-        		model[i].material.side = THREE.DoubleSide;
+					console.log('Successfully loaded model portion ' + i + ', with ' + model[i].geometry.vertices.length +' vertices and ' + model[i].geometry.faces.length + ' faces.');
+					model[i].geometry.computeBoundingSphere();
+					model[i].geometry.computeBoundingBox();
+					console.log('Bounding sphere radius of the geometry is ' + model[i].geometry.boundingSphere.radius);
+					//model[i].material = new THREE.MeshLambertMaterial( { color : 0xFF0000 } );
+					/*
+					avgPos = new THREE.Vector3();
+					for(var j = 0; j<model[i].geometry.faces.length; j++){
+						avgPos.addSelf(model[i].geometry.faces[j].centroid);
+					}
+					avgPos.multiplyScalar(1.0/model[i].geometry.faces.length);
+					*/
+					avgPos = new THREE.Vector3()
+						.copy(model[i].geometry.boundingBox.min)
+						.add(model[i].geometry.boundingBox.max)
+						.multiplyScalar(0.5)
+						.negate();
+					console.log('Center point (of bounding box) is away from the origin by ' + avgPos.x + ', ' + avgPos.y + ', ' + avgPos.z);
 
-				console.log('Successfully loaded model portion ' + i + ', with ' + model[i].geometry.vertices.length +' vertices and ' + model[i].geometry.faces.length + ' faces.');
-				model[i].geometry.computeBoundingSphere();
-				model[i].geometry.computeBoundingBox();
-				console.log('Bounding sphere radius of the geometry is ' + model[i].geometry.boundingSphere.radius);
-				//model[i].material = new THREE.MeshLambertMaterial( { color : 0xFF0000 } );
-				/*
-				avgPos = new THREE.Vector3();
-				for(var j = 0; j<model[i].geometry.faces.length; j++){
-					avgPos.addSelf(model[i].geometry.faces[j].centroid);
+					//this is to try to move the center to the right place
+					model[i].geometry.applyMatrix(new THREE.Matrix4().makeTranslation(avgPos.x, avgPos.y, avgPos.z));
+
+					//model[i].translate(avgPos.length(), avgPos.negate());
+					scene.add(model[i]);
+
+					var ray = new THREE.Raycaster(camera.position, new THREE.Vector3(0,0,-1));
+					if(ray.intersectObjects( model ).length==0)
+						model[i].applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
+
+
 				}
-				avgPos.multiplyScalar(1.0/model[i].geometry.faces.length);
-				*/
-				avgPos = new THREE.Vector3()
-					.copy(model[i].geometry.boundingBox.min)
-					.add(model[i].geometry.boundingBox.max)
-					.multiplyScalar(0.5)
-					.negate();
-				console.log('Center point (of bounding box) is away from the origin by ' + avgPos.x + ', ' + avgPos.y + ', ' + avgPos.z);
+				cursor = new THREE.Vector3( model[0].position.x, model[0].position.y, model[0].position.y );
+				if(pValues.length > 0)
+					loadURLdata();
+			});
+			loader.load( objPath, mtlPath);
 
-				//this is to try to move the center to the right place
-				model[i].geometry.applyMatrix(new THREE.Matrix4().makeTranslation(avgPos.x, avgPos.y, avgPos.z));
-
-				//model[i].translate(avgPos.length(), avgPos.negate());
-				scene.add(model[i]);
-
-				var ray = new THREE.Raycaster(camera.position, new THREE.Vector3(0,0,-1));
-				if(ray.intersectObjects( model ).length==0)
-					model[i].applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
-
-
-			}
-			cursor = new THREE.Vector3( model[0].position.x, model[0].position.y, model[0].position.y );
-			if(pValues.length > 0)
-				loadURLdata();
+		jQuery.ajax({
+			url: objPath
+		}).done(function(){
+			
 		});
-		loader.load( objPath, mtlPath );
+		
 
 
 		// markers are pyramids which will point to the location on the surface selected by the user
@@ -331,6 +349,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		stats.domElement.style.top = '0px';
 		stats.domElement.style.zIndex = 100;
 		viewport.appendChild( stats.domElement );
+		jQuery(stats.domElement).toggle();
 	} // end init
 
 	function loadURLdata() {
@@ -438,6 +457,17 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			path.distances[i].element.style.visibility = 'collapse';
 	}
 	function render() {
+		if(keyInput != null) {
+			switch(keyInput) {
+				case 'h':
+					jQuery(helpOverlay).toggle();
+					break;
+				case '`':
+					jQuery(stats.domElement).toggle();
+					break;
+			}
+			keyInput = null;
+		}
 		//console.log(scene.children);
 		// check for cursor going over model
 		if ( model.length > 0 ){
@@ -822,8 +852,9 @@ function media_model_append_saved_note(title, text, cam, markers, noteid){
 		noteid: noteid
 	});
 }
-
 jQuery(document).ready(function(){
+console.log("2");
+
 	for(var i=0; i<savedNotes.length; i++){
 		var li = document.createElement( 'li' );
 		var id = 'media-model-note-' + i;
@@ -874,16 +905,17 @@ jQuery(document).ready(function(){
 		//jQuery('.media-model-saved-notes-submenu').hide();
 		//jQuery('#media-model-saved-notes-selector').attr('class', 'hidden');
 	});
-	var viewport = document.getElementById('media-model-viewport');
-    document.addEventListener('mousedown', function (event) {
-        lastDownTarget = event.target;
-    }, false);
 
 	document.addEventListener('keydown', function (event) {
-        if(lastDownTarget == viewport) {
-            console.log(event);
-        }
-    }, false);
+		switch(event.keyCode){
+			case 72: 
+				keyInput = 'h';
+				break;
+			case 192:
+				keyInput = '`';
+				break;
+		}
+	}, false);
 });
 
 /*

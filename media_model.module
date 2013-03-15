@@ -261,13 +261,14 @@ or to remove markers from the path!
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
+  drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJLoader.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/libs/stats.min.js', 'file');
   drupal_add_js($mediaPath . '/media_model_controls.js', 'file');
   drupal_add_js($mediaPath . '/media_model.js', 'file');
   drupal_add_js('
    var currentURL = "";
    function loadModel(){
-    media_model_viewer("' . $objPath. '", "' . $objPath . '.mtl", "' . $nrmPath . '_Normal.jpg", ' . $variables['element']['#file']->fid . ');
+    media_model_viewer("' . $objPath. '", "' . $variables['element']['#file']->fid . '", "' . $objPath . '.mtl");
    }
    window.onload = loadModel;
    ', 'inline');

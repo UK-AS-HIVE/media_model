@@ -22,13 +22,9 @@ function passThrough(e) {
 }
 */
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
-var camera;
+var camera, controls, helpOverlay, lastDownTarget;
 var rotRadius = 100, windowWidth = 800, windowHeight = 600, 
 		windowHalfX = windowWidth / 2, windowHalfY = windowHeight / 2;
-var helpOverlay = document.createElement( 'div' );
-helpOverlay.id = 'media-model-help-overlay';
-helpOverlay.style.visibility = 'visible';
-helpOverlay.innerHTML = '<p class="media-model-help-cata">Viewport:</p><p><span class="media-model-help-keyname">left click+drag</span> - Rotate camera around local position</p><p><span class="media-model-help-keyname">alt+left click+drag</span> Rotate camera around cursor marker</p><p><span class="media-model-help-keyname">middle click+drag</span> - Pan camera</p><p><span class="media-model-help-keyname">double left click</span> - Drop marker at cursor marker</p><p><span class="media-model-help-keyname">mouse wheel</span> - Zoom in/out</p><p class="media-model-help-cata">Menu:</p><p> - Drag markers to reorder the path,<br/>or to remove markers from the path!</p>';
 var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 		path = {
 		markers: [],
@@ -40,14 +36,19 @@ var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 			value: 0,
 		},
 		 markerGeometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ),
-		 markerMaterial: new THREE.MeshPhongMaterial( { color : 0x0000FF } ),
+		 markerMaterial: new THREE.MeshPhongMaterial( { color : 0x0000FF , wireframe: true} ),
 		 //lineMaterial: new THREE.MeshBasicMaterial( { color: 0x00FF00 } )
 		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, vertexColors: true } ))
 		};
 
+var mouseDown = 0;
+
+//document.addEventListener('mousedown', function(){++mouseDown;}, false);
+//document.addEventListener('mouseup', function(){--mouseDown;}, false);
+
 function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	var viewport, container, ul, distancesLayer;
-	
+
 	//path.lineRibbon.geometry = path.lineGeometry;
 	path.markerGeometry.computeBoundingSphere();
 
@@ -85,13 +86,16 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 
 
 	function init(){
+		helpOverlay = document.getElementsByClassName('media-model-help-overlay')[0];
 		// place our div inside of the parent file-nameed div
 		viewport = document.createElement( 'div' );
 		viewport.id = 'media-model-viewport';
+		viewport.name = 'Media Model Viewport';
 		viewport.appendChild( helpOverlay );
 
 		container = document.createElement( 'div' );
 		container.id = 'media-model-wrapper';
+		container.name = 'Media Model Wrapper';
 		container.appendChild( viewport );
 
 		var parent = document.getElementById( 'file-'.concat(fileId) );
@@ -206,6 +210,9 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		camera.position.z = rotRadius;
 		scene.add( camera );
 
+		controls = new THREE.MediaModelControls( camera, viewport );
+		controls.addEventListener( 'change', render );	
+
 		// one ambient light of darkish color
 		var ambient = new THREE.AmbientLight( 0x130d00 );
 		scene.add( ambient );
@@ -301,15 +308,16 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		viewport.appendChild( renderer.domElement );
 		viewport.addEventListener( 'mousemove', onMouseMove, false );
 		viewport.addEventListener( 'mousedown', onMouseDown, false );
-		viewport.addEventListener( 'mouseup', onMouseUp, false );
+		//viewport.addEventListener( 'mouseup', onMouseUp, false );
 		viewport.addEventListener( 'DOMMouseScroll', onMouseWheel, false );
 		viewport.addEventListener( 'mousewheel', onMouseWheel, false );
 		viewport.addEventListener( 'mouseover', onMouseOver, false);
 		viewport.addEventListener( 'mouseout', onMouseOut, false);
+		viewport.addEventListener( 'keydown', onKeyDown, false);
 
-		viewport.addEventListener( 'touchstart', touchStart, false);
-		viewport.addEventListener( 'touchmove', touchMove, false);
-		viewport.addEventListener( 'touchend', touchEnd, false);
+		//viewport.addEventListener( 'touchstart', touchStart, false);
+		//viewport.addEventListener( 'touchmove', touchMove, false);
+		//viewport.addEventListener( 'touchend', touchEnd, false);
 
 		rebuildPath(ul.children);
 
@@ -317,6 +325,12 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		modalMessage.id = 'modal-message';
 		modalMessage.innerHTML = '&nbsp'
 		container.appendChild(modalMessage);
+
+		stats = new Stats();
+		stats.domElement.style.position = 'absolute';
+		stats.domElement.style.top = '0px';
+		stats.domElement.style.zIndex = 100;
+		viewport.appendChild( stats.domElement );
 	} // end init
 
 	function loadURLdata() {
@@ -399,7 +413,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 
 
 	function animate() {
-
+		controls.update();
 		requestAnimationFrame( animate );
 		render();
 	}
@@ -453,6 +467,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 
 		}
 		renderer.render( scene, camera );
+		stats.update();
 	}
 
 	function removePoint( colorID ){
@@ -518,13 +533,19 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			lastMouseDown =  new Date().getTime();
 		}
 	}
-	function touchStart ( event ){
+	function touchStart ( event ) {
 		
+	}
+
+	function onKeyDown ( event ) {
+		console.log(event);
 	}
 
 	function onMouseMove( event ) {
 		if ( !event.altKey && rotating ) {
 				rotating = false;
+				controls.state = -1;
+				controls.center = new THREE.Vector3();
 		}
 		// don't do anything unless we have a model loaded!
 		if( model[0] && !rotating){
@@ -535,9 +556,9 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			var dx = mouse.x - event.offsetX;
 			var dy = mouse.y - event.offsetY;
 			if( event.which == 1 ){
-				if( event.altKey ) {
-					rotateCameraAroundObject(dy * 0.005, dx * 0.005, cursorPyr);
-					//return;
+				if( event.altKey && !rotating ) {
+					rotating = true;
+					controls.center = cursorPyr.position;
 				}
 				else{
 					camera.rotation.x += dy * 0.002;
@@ -562,11 +583,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	}
 
 	function onMouseUp( event ) {
-
-		if (event.which == 1 ) {
-			if (rotating)
-				rotating = false;
-		}
 	}
 
 	function touchEnd ( event ){
@@ -584,7 +600,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	function onMouseWheel( event ){
 		// don't let the window scroll away!
 		event.preventDefault();
-
 		// we want a direction vector which points inside from the location of the camera
 		var direction = new THREE.Vector3();
 		direction.copy( cursor );
@@ -596,6 +611,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			direction.multiplyScalar( windowWidth / 100 * event.wheelDelta / ( Math.abs( event.wheelDelta ) ) );
 			camera.position.add(direction);
 		}
+		
 	}
 
 	jQuery(container).disableSelection();
@@ -634,72 +650,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	var translationInverse = new THREE.Matrix4();
 	var matrix = new THREE.Matrix4();
 
-	function rotateCameraAroundObject(dx, dy, target) {
-	
-		/*
-		if(!rotating){
-			camComponents.start.copy( camera.position );
-			camComponents.radius = camera.position.distanceTo( target.position );
-
-			camComponents.vDegs  = Math.acos((camera.position.y - camComponents.start.y)/camComponents.radius)*180/Math.PI;
-			camComponents.hDegs = Math.acos((camera.position.x - camComponents.start.x)/(camComponents.radius * Math.cos(camComponents.vDegs * Math.PI / 180)))*180/Math.PI;
-
-			rotating = true;
-		}
-		camComponents.hDegs -= dy*80;
-		camComponents.vDegs += dx*80;
-		
-		var theta = camComponents.hDegs * Math.PI / 180;
-		var phi = camComponents.vDegs * Math.PI / 180;
-
-		camera.position.x = camComponents.start.x + camComponents.radius * Math.sin( phi ) * Math.cos( theta );
-		camera.position.y = camComponents.start.y + camComponents.radius * Math.cos( phi );
-		camera.position.z = camComponents.start.z + camComponents.radius * Math.sin( phi ) * Math.sin( theta );
-		camera.lookAt( target.position );
-		*/
-		
-		/// reset matrix (since we're reusing declared variables)
-		// rotations based on input
-		// translate to and from center point
-		//translation.makeTranslation(
-		//	target.position.x - camera.position.x,
-		//	target.position.y - camera.position.y,
-		//	target.position.z - camera.position.z);
-		//translationInverse.getInverse(translation);
-		// translation * rotationX * rotationY * translationInverse
-		//matrix.multiplySelf(translationInverse);
-		//var camClone = new THREE.Matrix4().copy(camera.matrixWorld).multiply(matrix);
-		//var nextForward = rotateVectorForObject(new THREE.Vector3(0,0,1), camera.matrixWorld);
-		var nextUp = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
-		if( false ) { //Math.abs(nextUp.y) < 0.2) {
-			console.log(nextUp);
-			var nextRight = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
-			matrix.identity();
-			rotationX.makeRotationAxis(nextRight, dx);
-			matrix.multiply(rotationX);
-			camComponents.right = nextRight;
-			camera.applyMatrix(matrix);
-			camera.lookAt(target.position);
-		}
-		else{
-			var nextRight = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
-			matrix.identity();
-			rotationX.makeRotationAxis(nextRight, dx);
-			rotationY.makeRotationAxis(nextUp, dy);
-			matrix.multiply(rotationY).multiply(rotationX);
-			camComponents.up = nextUp;
-			camComponents.right = nextRight;
-			camera.applyMatrix(matrix);
-			camera.lookAt(target.position);
-		}
-
-		//var d2 = camera.position.distanceTo(target.console);
-		//position.log('Distance is ' + d1 + ' before rotation, and ' + d2 + ' after.');
-		if( !rotating ) {
-			rotating = true;
-		}
-
-	}
 	function rotateAroundWorldAxis( object, axis, radians ) {
 
     var rotationMatrix = new THREE.Matrix4();
@@ -924,9 +874,16 @@ jQuery(document).ready(function(){
 		//jQuery('.media-model-saved-notes-submenu').hide();
 		//jQuery('#media-model-saved-notes-selector').attr('class', 'hidden');
 	});
+	var viewport = document.getElementById('media-model-viewport');
+    document.addEventListener('mousedown', function (event) {
+        lastDownTarget = event.target;
+    }, false);
 
-	// thanks stackoverflow
-
+	document.addEventListener('keydown', function (event) {
+        if(lastDownTarget == viewport) {
+            console.log(event);
+        }
+    }, false);
 });
 
 /*

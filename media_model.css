@@ -131,6 +131,7 @@ textarea {
 	padding: 6px 15px;
 	cursor: pointer;
 	text-decoration:none;
+	background:#f9f9f9;
 
 }
 #media-model-saved-notes-menu li a:hover
@@ -165,7 +166,8 @@ a.media-model-saved-notes-selector
 }
 #media-model-load-notes-preview
 {
-	margin-left: 25%;
+    margin-top: 10px;
+	margin-left: 175px;
 	padding: 11px 0 0 0px;
 }
 #media-model-load-notes-title
@@ -204,13 +206,14 @@ a.media-model-saved-notes-selector
     font-family:verdana, sans-serif;
     position:absolute;
 }
-#media-model-help-overlay {
+.media-model-help-overlay {
+	visibility: visible;
     pointer-events:none;
     color:rgb(255,255,255);
     font-family:verdana, sans-serif;
     position:absolute;
-    top: 343%;
-    left: 2%;
+    top: 440px;
+    left: 25px;
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
 }

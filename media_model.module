@@ -227,6 +227,22 @@ function theme_model($variables) {
 </div>
 </div>
 
+<div class="media-model-help-overlay">
+<p>Hit \'<span class="media-model-help-cata">h</span>\' to hide this menu
+</p>
+<p><span class="media-model-help-cata">Viewport:</span><br>
+<span class="media-model-help-keyname">left click+drag</span> - Rotate camera around local position<br>
+<span class="media-model-help-keyname">alt+left click+drag</span> - Rotate camera around cursor marker<br>
+<span class="media-model-help-keyname">middle click+drag</span> - Pan camera<br>
+<span class="media-model-help-keyname">double left click</span> - Drop marker at cursor marker<br>
+<span class="media-model-help-keyname">mouse wheel</span> - Zoom in/out<br>
+</p>
+<p><span class="media-model-help-cata">Menu:</span><br>
+Drag markers to reorder the path,<br>
+or to remove markers from the path!
+</p>
+</div>
+
   ';
   ctools_include('plugins');
   //dpm($variables);
@@ -245,6 +261,8 @@ function theme_model($variables) {
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
   drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
+  drupal_add_js(libraries_get_path('threejs') . '/examples/js/libs/stats.min.js', 'file');
+  drupal_add_js($mediaPath . '/media_model_controls.js', 'file');
   drupal_add_js($mediaPath . '/media_model.js', 'file');
   drupal_add_js('
    var currentURL = "";

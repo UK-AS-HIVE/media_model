@@ -3,9 +3,32 @@ var objPath, mtlPath, fileId, savedNotes = [];
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
 	pValues.pop();
+/*
+// wasn't quite what i needed, but interesting
+function passThrough(e) {
+	console.log(e);
+    jQuery('.media-model-floating-distance-text').each(function() {
+       // check if clicked point (taken from event) is inside element
+       var mouseX = e.pageX;
+       var mouseY = e.pageY;
+       var offset = $(this).offset();
+       var width = $(this).width();
+       var height = $(this).height();
 
+       if (mouseX > offset.left && mouseX < offset.left+width 
+       		&& mouseY > offset.top && mouseY < offset.top+height)
+         jQuery(this).click(); // force click event
+    });
+}
+*/
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
 var camera;
+var rotRadius = 100, windowWidth = 800, windowHeight = 600, 
+		windowHalfX = windowWidth / 2, windowHalfY = windowHeight / 2;
+var helpOverlay = document.createElement( 'div' );
+helpOverlay.id = 'media-model-help-overlay';
+helpOverlay.style.visibility = 'visible';
+helpOverlay.innerHTML = '<p class="media-model-help-cata">Viewport:</p><p><span class="media-model-help-keyname">left click+drag</span> - Rotate camera around local position</p><p><span class="media-model-help-keyname">alt+left click+drag</span> Rotate camera around cursor marker</p><p><span class="media-model-help-keyname">middle click+drag</span> - Pan camera</p><p><span class="media-model-help-keyname">double left click</span> - Drop marker at cursor marker</p><p><span class="media-model-help-keyname">mouse wheel</span> - Zoom in/out</p><p class="media-model-help-cata">Menu:</p><p> - Drag markers to reorder the path,<br/>or to remove markers from the path!</p>';
 var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 		path = {
 		markers: [],
@@ -42,9 +65,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 
 	var mouse = { x: 0, y: 0 }, INTERSECTED, mouse3D = { x: 0, y: 0, z: 1 };
 
-	var rotRadius = 100, windowWidth = 800, windowHeight = 600, 
-		windowHalfX = windowWidth / 2, windowHalfY = windowHeight / 2;
-	
 	var model = [];
 	var rotating = false;
 
@@ -68,6 +88,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		// place our div inside of the parent file-nameed div
 		viewport = document.createElement( 'div' );
 		viewport.id = 'media-model-viewport';
+		viewport.appendChild( helpOverlay );
 
 		container = document.createElement( 'div' );
 		container.id = 'media-model-wrapper';
@@ -354,10 +375,7 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 				distancesLayer.appendChild(newDistances[i-1].element);
 				newDistances[i-1].element.className = 'media-model-floating-distance-text';
 				newDistances[i-1].element.innerHTML = newDistances[i-1].value.toFixed(2);
-				newDistances[i-1].element.style.color = 'rgb(0,255,0)';
-				newDistances[i-1].element.style.position = 'absolute';
-				newDistances[i-1].element.style.fontWeight = 'bold';
-				newDistances[i-1].element.style.fontFamily = 'verdana, sans-serif';
+				
 
 				path.distance.value += newDistances[i-1].value;
 			}
@@ -425,7 +443,6 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 			}
 			else if (markerIntersects.length > 0
 				&& (modelIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) > markerIntersects[0].point.distanceTo(camera.position))) {
-				console.log(cursorPyr);
 				cursorPyr.visible = false;
 				cursor.copy( markerIntersects[0].object.position);
 				highlighted = true;
@@ -615,7 +632,9 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 	var rotationX = new THREE.Matrix4();
 	var translation = new THREE.Matrix4();
 	var translationInverse = new THREE.Matrix4();
-	var matrix = new THREE.Matrix4();function rotateCameraAroundObject(dx, dy, target) {
+	var matrix = new THREE.Matrix4();
+
+	function rotateCameraAroundObject(dx, dy, target) {
 	
 		/*
 		if(!rotating){
@@ -638,33 +657,47 @@ function media_model_viewer(objPath, mtlPath, nrmPath, fileId, vertices){
 		camera.position.z = camComponents.start.z + camComponents.radius * Math.sin( phi ) * Math.sin( theta );
 		camera.lookAt( target.position );
 		*/
-		if( !rotating ) {
-			rotating = true;
-		}
-		camComponents.up = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
-		camComponents.right = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
 		
 		/// reset matrix (since we're reusing declared variables)
-		matrix.identity();
 		// rotations based on input
-		rotationX.makeRotationAxis(camComponents.right, dx);
-		rotationY.makeRotationAxis(camComponents.up, dy);
 		// translate to and from center point
-		translation.makeTranslation(
-			target.position.x - camera.position.x,
-			target.position.y - camera.position.y,
-			target.position.z - camera.position.z);
-		translationInverse.getInverse(translation);
+		//translation.makeTranslation(
+		//	target.position.x - camera.position.x,
+		//	target.position.y - camera.position.y,
+		//	target.position.z - camera.position.z);
+		//translationInverse.getInverse(translation);
 		// translation * rotationX * rotationY * translationInverse
-		matrix.multiply(rotationY).multiply(rotationX);
 		//matrix.multiplySelf(translationInverse);
-		camera.applyMatrix(matrix);
-		camera.lookAt(target.position);
-
-
+		//var camClone = new THREE.Matrix4().copy(camera.matrixWorld).multiply(matrix);
+		//var nextForward = rotateVectorForObject(new THREE.Vector3(0,0,1), camera.matrixWorld);
+		var nextUp = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
+		if( false ) { //Math.abs(nextUp.y) < 0.2) {
+			console.log(nextUp);
+			var nextRight = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
+			matrix.identity();
+			rotationX.makeRotationAxis(nextRight, dx);
+			matrix.multiply(rotationX);
+			camComponents.right = nextRight;
+			camera.applyMatrix(matrix);
+			camera.lookAt(target.position);
+		}
+		else{
+			var nextRight = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
+			matrix.identity();
+			rotationX.makeRotationAxis(nextRight, dx);
+			rotationY.makeRotationAxis(nextUp, dy);
+			matrix.multiply(rotationY).multiply(rotationX);
+			camComponents.up = nextUp;
+			camComponents.right = nextRight;
+			camera.applyMatrix(matrix);
+			camera.lookAt(target.position);
+		}
 
 		//var d2 = camera.position.distanceTo(target.console);
 		//position.log('Distance is ' + d1 + ' before rotation, and ' + d2 + ' after.');
+		if( !rotating ) {
+			rotating = true;
+		}
 
 	}
 	function rotateAroundWorldAxis( object, axis, radians ) {
@@ -891,6 +924,9 @@ jQuery(document).ready(function(){
 		//jQuery('.media-model-saved-notes-submenu').hide();
 		//jQuery('#media-model-saved-notes-selector').attr('class', 'hidden');
 	});
+
+	// thanks stackoverflow
+
 });
 
 /*

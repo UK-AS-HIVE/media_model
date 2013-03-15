@@ -190,11 +190,33 @@ a.media-model-saved-notes-selector
 {
 	width: 120px;
 }
-
 .marker-button-icon-right {
    width: 0;
    height: 0;
    border-left: 100px solid red;
    border-top: 50px solid transparent;
    border-bottom: 50px solid transparent;
+}
+.media-model-floating-distance-text {
+    pointer-events:none;
+    color:rgb(0,255,0);
+    font-weight:bold;
+    font-family:verdana, sans-serif;
+    position:absolute;
+}
+#media-model-help-overlay {
+    pointer-events:none;
+    color:rgb(255,255,255);
+    font-family:verdana, sans-serif;
+    position:absolute;
+    top: 343%;
+    left: 2%;
+    text-shadow: -1px 0 black, 0 1px black,
+      1px 0 black, 0 -1px black;
+}
+.media-model-help-cata {
+	font-weight: bold;
+}
+.media-model-help-keyname {
+	font-weight: bold;
 }

@@ -156,7 +156,47 @@ function media_model_theme($existing) {
   );
 }
 
+function media_model_get_materials( $objFileName, $objPath){
+  $mmDir = 'public://media_model_files/';
+  $baseMtlPath = str_replace('.obj', '.obj.mtl', $objPath);
+  $baseJpgPath = str_replace('.obj', '.jpg', $objPath);
+  $objName = str_replace('.obj', '', $objFileName);
+
+  $types = array(
+    'low' => 512,
+    'med' => 2048,
+    'high' => 4098,
+  );
+  $mtlPaths = array();
+
+  file_prepare_directory($mmDir, FILE_CREATE_DIRECTORY);
+  if(is_writable($mmDir)) {
+    foreach($types as $type => $pixels) {
+      $modMtlPath = $mmDir . $objName . '_' . $type . '.obj.mtl';
+      $modJpgPath = $mmDir . $objName . '_' . $type . '.jpg';
+      if(!file_exists($modMtlPath)){
+        $mtlBody = file_get_contents($baseMtlPath);
+        file_put_contents($modMtlPath, str_replace($objName . '.jpg', file_create_url($modJpgPath), $mtlBody));
+      }
+      if(!file_exists($modJpgPath)){
+        $command = 'convert ' . drupal_realpath($baseJpgPath) . ' -resize ' . $pixels . 'x' . $pixels . ' '. drupal_realpath($modJpgPath);
+        exec($command, $output=array());
+        dpm($output);
+      }
+      $mtlPaths[$type] = file_create_url($modMtlPath);
+    }
+  }
+  
+  return $mtlPaths;
+}
 function theme_model($variables) {
+  static $id=0;
+  $objPath = file_create_url($variables['element']['#file']->uri); 
+
+  $mediaPath = drupal_get_path('module', 'media_model');
+
+  $mtlPaths = media_model_get_materials($variables['element']['#file']->filename, $variables['element']['#file']->uri);
+
   drupal_add_library('system', 'ui.dialog');
   drupal_add_js('
     jQuery(document).ready(function(){
@@ -243,47 +283,56 @@ or to remove markers from the path!
 </p>
 </div>
 
+<div class="media-model-help-prompt">
+<p>Hit \'<span class="media-model-help-cata">h</span>\' to display help
+</p>
+</div>
+
   ';
-  ctools_include('plugins');
+  //ctools_include('plugins');
   //dpm($variables);
   //drupal_set_message('<pre>theme_model variables: ' . print_r($variables, 1) . '</pre>');
   //return 'GLGE';
   // unique id per instance 
-  static $id=0;
-  $objPath = file_create_url($variables['element']['#file']->uri); 
-  $nrmPath = substr($objPath, 0, strlen($objPath)-4);
-  $mediaPath = drupal_get_path('module', 'media_model');
   //drupal_add_library('system', 'ui.draggable');
   drupal_add_library('system', 'ui.sortable');
   //drupal_add_js(libraries_get_path('jquery') . '/js/jquery-1.9.1.js');
   //drupal_add_js(libraries_get_path('jquery') . '/js/jquery-ui-1.10.1.custom.js');
   drupal_add_css($mediaPath . '/media_model.css');
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
-  drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
-  drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
-  drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJLoader.js', 'file');
-  drupal_add_js(libraries_get_path('threejs') . '/examples/js/libs/stats.min.js', 'file');
-  drupal_add_js($mediaPath . '/media_model_controls.js', 'file');
-  drupal_add_js($mediaPath . '/media_model.js', 'file');
+  //drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
+  //drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
+  //drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJLoader.js', 'file');
+  //drupal_add_js(libraries_get_path('threejs') . '/examples/js/libs/stats.min.js', 'file');
+  drupal_add_js($mediaPath . '/js/media_model_controls.js', 'file');
+  drupal_add_js($mediaPath . '/js/media_model.js', 'file');
+  drupal_add_js($mediaPath . '/js/loaders/MTLLoader.js', 'file');
+  drupal_add_js($mediaPath . '/js/loaders/OBJMTLLoader.js', 'file');
+  drupal_add_js($mediaPath . '/js/loaders/OBJLoader.js', 'file');
+  drupal_add_js($mediaPath . '/js/libs/stats.min.js', 'file');
+
   drupal_add_js('
    var currentURL = "";
    function loadModel(){
-    media_model_viewer("' . $objPath. '", "' . $variables['element']['#file']->fid . '", "' . $objPath . '.mtl");
+    media_model_viewer("' . $objPath. '", "' . $variables['element']['#file']->fid . '", ' . drupal_json_encode($mtlPaths) . ');
    }
    window.onload = loadModel;
    ', 'inline');
 
-  $notes = $variables['element']['#file']->media_model_notes['notes_list'];
-  foreach($notes as $note){
-    drupal_add_js('
-        media_model_append_saved_note("' . 
-          $note->title . '","' . 
-          $note->text . '","' .
-          $note->cam . '","' .
-          $note->markers . '","' .
-          $note->noteid .
-        '");
-    ', 'inline');
+  if($variables['element']['#file']->media_model_notes['has_notes']) {
+    $notes = $variables['element']['#file']->media_model_notes['notes_list'];
+    if($notes)
+      foreach($notes as $note){
+        drupal_add_js('
+            media_model_append_saved_note("' . 
+              $note->title . '","' . 
+              $note->text . '","' .
+              $note->cam . '","' .
+              $note->markers . '","' .
+              $note->noteid .
+            '");
+        ', 'inline');
+      }
   }
 
   return $output;
@@ -322,12 +371,9 @@ function media_model_note_save($note){
     $note->changed = REQUEST_TIME;
     // Write to DB.
     if ($new) {
-      dpm($note);
       drupal_write_record('media_model_notes', $note);
     }
     else {
-      dpm("else");
-      dpm($note);
       drupal_write_record('media_model_notes', $note, 'noteid');
     }
 

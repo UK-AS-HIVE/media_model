@@ -4,8 +4,24 @@ var keyInput = null;
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
 	pValues.pop();
+/*
+// wasn't quite what i needed, but interesting
+function passThrough(e) {
+	console.log(e);
+    jQuery('.media-model-floating-distance-text').each(function() {
+       // check if clicked point (taken from event) is inside element
+       var mouseX = e.pageX;
+       var mouseY = e.pageY;
+       var offset = $(this).offset();
+       var width = $(this).width();
+       var height = $(this).height();
 
-
+       if (mouseX > offset.left && mouseX < offset.left+width 
+       		&& mouseY > offset.top && mouseY < offset.top+height)
+         jQuery(this).click(); // force click event
+    });
+}
+*/
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
 var camera, controls, helpOverlay, helpPrompt, lastDownTarget;
 var rotRadius = 100, windowWidth = 800, windowHeight = 600, 
@@ -658,7 +674,7 @@ function media_model_viewer(objPath, fileId, mtlPaths){
 
 		pyramidUp.multiplyScalar( pyramid.geometry.boundingSphere.radius/2 );
 		// and add it to the pyramid's position
-		//pyramid.position.add( pyramidUp );
+		pyramid.position.add( pyramidUp );
 
 		pyramid.lookAt( location );
 		pyramid.rotation.x -= Math.PI/2;
@@ -811,11 +827,10 @@ function saveNote(formResults) {
 		dataType: 'json',
 		data: data,
 		success: function(data){
-			console.log('Successfully sent add note POST to server');
 			console.log(data.status);
 		},
 		complete: function(data){
-			console.log('Completed sending add note POST to server');
+			console.log('Successfully sent POST to server');
 		},
 	});
 }
@@ -909,3 +924,10 @@ jQuery(document).ready(function(){
 		}
 	}, false);
 });
+
+/*
+var buttonStyle = document.createElement( 'style' );
+buttonStyle.type = 'text/css';
+buttonStyle.innerHTML = "";
+document.getElementsByTagName('head')[0].appendChild(buttonStyle);
+*/

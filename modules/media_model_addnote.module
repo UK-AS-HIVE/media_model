@@ -16,9 +16,7 @@ function media_model_addnote_menu() {
     'page callback' => 'media_model_addnote_page',
     'access arguments' => array('access content'),
     'type' => MENU_NORMAL_ITEM,
-  );
-*/
-  $items['addnote/%ctools_js/form'] = array( 
+  );  $items['addnote/%ctools_js/form'] = array( 
     'title' => t('Make a note about this model'), 
     'description' => 'A form to create notes for model',
     'page callback' => 'media_model_addnote_popup', 
@@ -26,6 +24,8 @@ function media_model_addnote_menu() {
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
+*/
+
 
   return $items;
 }
@@ -55,7 +55,6 @@ function media_model_addnote_page() {
 */
 function media_model_addnote_set_cam_and_markers() {
 	$data = $_POST;
-	dpm($data);
 	//($file, $notes, $cam, $markers
 	$saved = media_model_create_note(
 		intval($data['fid']),

@@ -18,9 +18,6 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	this.center = new THREE.Vector3();
 
-	this.userZoom = true;
-	this.userZoomSpeed = 1.0;
-
 	this.userRotate = true;
 	this.userRotateSpeed = 1.0;
 
@@ -41,17 +38,13 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	var rotateEnd = new THREE.Vector2();
 	var rotateDelta = new THREE.Vector2();
 
-	var zoomStart = new THREE.Vector2();
-	var zoomEnd = new THREE.Vector2();
-	var zoomDelta = new THREE.Vector2();
-
 	var phiDelta = 0;
 	var thetaDelta = 0;
 	var scale = 1;
 
 	var lastPosition = new THREE.Vector3();
 
-	var STATE = { NONE : -1, ROTATE : 0, ZOOM : 1 };
+	var STATE = { NONE : -1, ROTATE : 0 };
 	var state = STATE.NONE;
 
 	// events
@@ -107,29 +100,6 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	};
 
-	this.zoomIn = function ( zoomScale ) {
-
-		if ( zoomScale === undefined ) {
-
-			zoomScale = getZoomScale();
-
-		}
-
-		scale /= zoomScale;
-
-	};
-
-	this.zoomOut = function ( zoomScale ) {
-
-		if ( zoomScale === undefined ) {
-
-			zoomScale = getZoomScale();
-
-		}
-
-		scale *= zoomScale;
-
-	};
 
 	this.update = function () {
 		if(state == STATE.NONE)
@@ -195,12 +165,6 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	}
 
-	function getZoomScale() {
-
-		return Math.pow( 0.95, scope.userZoomSpeed );
-
-	}
-
 	function onMouseDown( event ) {
 
 		if ( event.button == 0 && event.altKey ) {
@@ -211,13 +175,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 			rotateStart.set( event.clientX, event.clientY );
 
-		} else if ( event.button == 1 ) {
-
-			state = STATE.ZOOM;
-
-			zoomStart.set( event.clientX, event.clientY );
-
-		}
+		} 
 
 		domElement.addEventListener( 'mousemove', onMouseMove, false );
 		domElement.addEventListener( 'mouseup', onMouseUp, false );
@@ -239,23 +197,6 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 			rotateStart.copy( rotateEnd );
 
-		} else if ( state === STATE.ZOOM ) {
-
-			zoomEnd.set( event.clientX, event.clientY );
-			zoomDelta.subVectors( zoomEnd, zoomStart );
-
-			if ( zoomDelta.y > 0 ) {
-
-				scope.zoomIn();
-
-			} else {
-
-				scope.zoomOut();
-
-			}
-
-			zoomStart.copy( zoomEnd );
-
 		}
 
 	}
@@ -272,32 +213,6 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	}
 
 	function onMouseWheel( event ) {
-
-		/*
-		if ( ! scope.userZoom ) return;
-
-		var delta = 0;
-
-		if ( event.wheelDelta ) { // WebKit / Opera / Explorer 9
-
-			delta = event.wheelDelta;
-
-		} else if ( event.detail ) { // Firefox
-
-			delta = - event.detail;
-
-		}
-
-		if ( delta > 0 ) {
-
-			scope.zoomOut();
-
-		} else {
-
-			scope.zoomIn();
-
-		}
-		*/
 
 	}
 

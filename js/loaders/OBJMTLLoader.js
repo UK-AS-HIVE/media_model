@@ -86,7 +86,6 @@ THREE.OBJMTLLoader.prototype = {
 						} else {
 
 							// No passed in MTL file, look for mtlfile in obj file
-
 							obj3d = scope.parse( objContent, function( mtlfile ) {
 
 								mtlDone = false;
@@ -112,7 +111,7 @@ THREE.OBJMTLLoader.prototype = {
 			} else if ( event.type === 'error' ) {
 
 				// MTL failed to load -- oh well, we will just not have material ...
-
+				console.log('MTL failed to load!');
 				mtlDone = true;
 
 			}
@@ -121,7 +120,7 @@ THREE.OBJMTLLoader.prototype = {
 
 				// MTL file is loaded and OBJ file is loaded
 				// Apply materials to model
-
+				console.log('Applying materials to model...');
 				if ( materialsCreator ) {
 
 					obj3d.traverse( function( object ) {
@@ -131,6 +130,8 @@ THREE.OBJMTLLoader.prototype = {
 							if ( object.material.name ) {
 
 								var material = materialsCreator.create( object.material.name );
+								console.log(material);
+								console.log(materialsCreator);
 								if ( material ) {
 
 									object.material = material;

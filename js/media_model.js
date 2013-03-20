@@ -1,27 +1,10 @@
-var objPath, mtlPath, fileId, savedNotes = [];
+var objPath, mtlPath, fileId, stats, fps, savedNotes = [];
 var keyInput = null;
 
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
 	pValues.pop();
-/*
-// wasn't quite what i needed, but interesting
-function passThrough(e) {
-	console.log(e);
-    jQuery('.media-model-floating-distance-text').each(function() {
-       // check if clicked point (taken from event) is inside element
-       var mouseX = e.pageX;
-       var mouseY = e.pageY;
-       var offset = $(this).offset();
-       var width = $(this).width();
-       var height = $(this).height();
 
-       if (mouseX > offset.left && mouseX < offset.left+width 
-       		&& mouseY > offset.top && mouseY < offset.top+height)
-         jQuery(this).click(); // force click event
-    });
-}
-*/
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
 var camera, controls, helpOverlay, helpPrompt, lastDownTarget;
 var rotRadius = 100, windowWidth = 800, windowHeight = 600, 
@@ -44,15 +27,31 @@ var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 
 var mouseDown = 0;
 
+var FPSAvg = function(n){
+	var lastNFrames = [], avg = 0, factor = 1/n;
+	return{
+		update:function(){
+			lastNFrames.push(factor*fps);
+			avg += lastNFrames[lastNFrames.length-1];
+			if(lastNFrames.length>n) {
+				avg -= lastNFrames.shift();
+				return avg;
+			}
+			return null;
+		}
+	};
+};
+
 var container = document.createElement( 'div' );
 container.id = 'media-model-wrapper';
 container.name = 'Media Model Wrapper';
 //document.addEventListener('mousedown', function(){++mouseDown;}, false);
 //document.addEventListener('mouseup', function(){--mouseDown;}, false);
 
-function media_model_viewer(objPath, fileId, mtlPaths){
-	mtlPaths = eval(mtlPaths)
-	console.log(mtlPaths);
+function media_model_viewer(fileId, objPaths, mtlPaths){
+	mtlPaths = eval(mtlPaths);
+	objPaths = eval(objPaths);
+	console.log(objPaths);
 	var viewport, ul, distancesLayer;
 
 	//path.lineRibbon.geometry = path.lineGeometry;
@@ -232,7 +231,6 @@ function media_model_viewer(objPath, fileId, mtlPaths){
 		projector = new THREE.Projector();
 		var loader = new THREE.OBJMTLLoader();
 			//loader.addEventListener( 'complete', );
-
 			loader.addEventListener( 'load', function ( event ) {
 				var tmp = event.content;
 				console.log(tmp);
@@ -281,14 +279,12 @@ function media_model_viewer(objPath, fileId, mtlPaths){
 				if(pValues.length > 0)
 					loadURLdata();
 			});
-			loader.load( objPath, mtlPaths.low);
+			loader.load( objPaths.low ? objPaths.low : objPaths.default , mtlPaths.low);
 
-		jQuery.ajax({
-			url: objPath
-		}).done(function(){
-			
-		});
-		
+		console.log('Starting with this obj: ');
+		console.log(objPaths.low ? objPaths.low : objPaths.default);
+		console.log('Starting with this mtl: ');
+		console.log(mtlPaths.low);
 
 
 		// markers are pyramids which will point to the location on the surface selected by the user
@@ -321,7 +317,7 @@ function media_model_viewer(objPath, fileId, mtlPaths){
 		viewport.appendChild( renderer.domElement );
 		viewport.addEventListener( 'mousemove', onMouseMove, false );
 		viewport.addEventListener( 'mousedown', onMouseDown, false );
-		//viewport.addEventListener( 'mouseup', onMouseUp, false );
+		viewport.addEventListener( 'mouseup', onMouseUp, false );
 		viewport.addEventListener( 'DOMMouseScroll', onMouseWheel, false );
 		viewport.addEventListener( 'mousewheel', onMouseWheel, false );
 		viewport.addEventListener( 'mouseover', onMouseOver, false);
@@ -343,6 +339,9 @@ function media_model_viewer(objPath, fileId, mtlPaths){
 		stats.domElement.style.position = 'absolute';
 		stats.domElement.style.top = '0px';
 		stats.domElement.style.zIndex = 100;
+
+		fpsAvg = new FPSAvg(100);
+
 		viewport.appendChild( stats.domElement );
 		jQuery(stats.domElement).toggle();
 	} // end init
@@ -506,6 +505,7 @@ function media_model_viewer(objPath, fileId, mtlPaths){
 		}
 		renderer.render( scene, camera );
 		stats.update();
+		fpsAvg.update();
 	}
 
 	function removePoint( colorID ){
@@ -674,7 +674,7 @@ function media_model_viewer(objPath, fileId, mtlPaths){
 
 		pyramidUp.multiplyScalar( pyramid.geometry.boundingSphere.radius/2 );
 		// and add it to the pyramid's position
-		pyramid.position.add( pyramidUp );
+		//pyramid.position.add( pyramidUp );
 
 		pyramid.lookAt( location );
 		pyramid.rotation.x -= Math.PI/2;
@@ -827,10 +827,11 @@ function saveNote(formResults) {
 		dataType: 'json',
 		data: data,
 		success: function(data){
+			console.log('Successfully sent add note POST to server');
 			console.log(data.status);
 		},
 		complete: function(data){
-			console.log('Successfully sent POST to server');
+			console.log('Completed sending add note POST to server');
 		},
 	});
 }
@@ -924,10 +925,3 @@ jQuery(document).ready(function(){
 		}
 	}, false);
 });
-
-/*
-var buttonStyle = document.createElement( 'style' );
-buttonStyle.type = 'text/css';
-buttonStyle.innerHTML = "";
-document.getElementsByTagName('head')[0].appendChild(buttonStyle);
-*/

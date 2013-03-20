@@ -171,6 +171,12 @@ function media_model_get_materials( $objFileName, $objPath){
 
   file_prepare_directory($mmDir, FILE_CREATE_DIRECTORY);
   if(is_writable($mmDir)) {
+    $modMtlPath = $mmDir . $objName . '_default.obj.mtl';
+    if(!file_exists($modMtlPath)){
+      $mtlBody = file_get_contents($baseMtlPath);
+      file_put_contents($modMtlPath, str_replace($objName . '.jpg', file_create_url($baseJpgPath), $mtlBody));
+    }
+    $mtlPaths['default'] = file_create_url($modMtlPath);
     foreach($types as $type => $pixels) {
       $modMtlPath = $mmDir . $objName . '_' . $type . '.obj.mtl';
       $modJpgPath = $mmDir . $objName . '_' . $type . '.jpg';
@@ -189,6 +195,32 @@ function media_model_get_materials( $objFileName, $objPath){
   
   return $mtlPaths;
 }
+
+function media_model_get_objs( $objFileName, $baseObjPath){
+  $mmDir = 'public://media_model_files/';
+  $objName = str_replace('.obj', '', $objFileName);
+
+  $types = array(
+    'low' => 5000,
+    'med' => 50000,
+    'high' => 200000,
+  );
+  $objPaths = array(
+      'default' => file_create_url($baseObjPath)
+  );
+
+  file_prepare_directory($mmDir, FILE_CREATE_DIRECTORY);
+
+  if(is_writable($mmDir)) {
+    foreach($types as $type => $polycount) {
+      $modObjPath = $mmDir . $objName . '_' . $type . '.obj';
+      $objPaths[$type] = file_exists($modObjPath) ? file_create_url($modObjPath) : null;
+    }
+  }
+  return $objPaths;
+}
+
+
 function theme_model($variables) {
   static $id=0;
   $objPath = file_create_url($variables['element']['#file']->uri); 
@@ -196,6 +228,7 @@ function theme_model($variables) {
   $mediaPath = drupal_get_path('module', 'media_model');
 
   $mtlPaths = media_model_get_materials($variables['element']['#file']->filename, $variables['element']['#file']->uri);
+  $objPaths = media_model_get_objs($variables['element']['#file']->filename, $variables['element']['#file']->uri);
 
   drupal_add_library('system', 'ui.dialog');
   drupal_add_js('
@@ -314,7 +347,7 @@ or to remove markers from the path!
   drupal_add_js('
    var currentURL = "";
    function loadModel(){
-    media_model_viewer("' . $objPath. '", "' . $variables['element']['#file']->fid . '", ' . drupal_json_encode($mtlPaths) . ');
+    media_model_viewer("' . $variables['element']['#file']->fid . '", ' . drupal_json_encode($objPaths) . ', ' . drupal_json_encode($mtlPaths) . ');
    }
    window.onload = loadModel;
    ', 'inline');

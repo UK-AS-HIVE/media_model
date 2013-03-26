@@ -337,12 +337,12 @@ or to remove markers from the path!
   //drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
   //drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJLoader.js', 'file');
   //drupal_add_js(libraries_get_path('threejs') . '/examples/js/libs/stats.min.js', 'file');
-  drupal_add_js($mediaPath . '/js/media_model_controls.js', 'file');
-  drupal_add_js($mediaPath . '/js/media_model.js', 'file');
+  drupal_add_js($mediaPath . '/js/libs/stats.min.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/MTLLoader.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/OBJMTLLoader.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/OBJLoader.js', 'file');
-  drupal_add_js($mediaPath . '/js/libs/stats.min.js', 'file');
+  drupal_add_js($mediaPath . '/js/media_model.js', 'file');
+  drupal_add_js($mediaPath . '/js/media_model_controls.js', 'file');
 
   drupal_add_js('
    var currentURL = "";

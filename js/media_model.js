@@ -1,9 +1,14 @@
-var objPath, mtlPath, fileId, stats, fps, savedNotes = [];
+var objPath, mtlPath, fileId, stats, fps, savedNotes = [], qh;
 var keyInput = null;
 
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
 	pValues.pop();
+
+	stats = new Stats();
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.top = '0px';
+	stats.domElement.style.zIndex = 100;
 
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
 var camera, controls, helpOverlay, helpPrompt, lastDownTarget;
@@ -25,6 +30,37 @@ var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, vertexColors: true } ))
 		};
 
+var MarkerHandler = function(){
+	var object, up, domObject, grabbed, lastClick;
+	return{				
+		setObject:function(object){
+			this.object = object;
+			up = rotateVectorForObject(new THREE.Vector3(0,1,0), object.matrixWorld);
+			domObject = document.getElementById(this.object.name);
+			return null;
+		},
+		update:function(){
+			if(this.object)
+				if(this.grabbed){
+					this.object.position.set(cursor.x, cursor.y, cursor.z);
+					rebuildPath(ul.children);
+				}
+				else
+					rotateAroundWorldAxis(this.object, up, 0.05);
+			return null;
+		},
+		clear:function(){
+			if(!this.grabbed){
+				cursorPyr.visible = true;
+				return (this.object = null);
+			}
+			else
+				return null;
+		}
+	}
+}
+var markerHandler = new MarkerHandler();
+
 var mouseDown = 0;
 
 var FPSAvg = function(n){
@@ -41,51 +77,133 @@ var FPSAvg = function(n){
 		}
 	};
 };
+var QUALITY = [
+	{value: 0, name: "default"},
+	{value: 1, name: "low"}, 
+	{value: 2, name: "med"}, 
+	{value: 3, name: "high"}
+];
 
+var Load = function(){
+	var loading = false;
+	var quality = QUALITY[1];
+	var ready = false;
+	return{
+		quality: quality,
+		loading: loading,
+		ready: ready,
+		next: function(){
+			return  QUALITY[this.quality.value+1] ? this[QUALITY[this.quality.value+1].name] : {path: null};
+		},
+		default: {path: null},
+		low: {path: null},
+		med: {path: null},
+		high: {path: null},
+	};
+};
+
+var QualityHandler = function(){
+	var mtlLoad = new Load(), objLoad = new Load(), fpsAvg = new FPSAvg(100);
+	var material, object;
+	return{
+		objLoad: objLoad,
+		mtlLoad: mtlLoad,
+		update:function(){
+			if(fpsAvg.update()>15){
+				if(!objLoad.loading && objLoad.next().path ) {
+					object = [];
+					objLoad.loading = true;
+					var loader = new THREE.OBJLoader();
+					loader.addEventListener( 'load', function ( event ) {
+						var tmp = event.content;
+						console.log("Loaded from: " + objLoad.next().path);
+						if(tmp.children.length>0)
+							for( var i = 0; i<tmp.children.length; i++ ){
+								object.push( tmp.children[i] );
+								object[i].name = objLoad.quality.name;
+								console.log('Successfully loaded ' + objLoad.quality.name + ' quality model portion ' + i + '\n\t'
+								 + object[i].geometry.vertices.length +' vertices and ' + object[i].geometry.faces.length + ' faces.');
+								object[i].geometry.computeBoundingSphere();
+								object[i].geometry.computeBoundingBox();
+								console.log('Bounding sphere radius of the geometry is ' + object[i].geometry.boundingSphere.radius);
+							}
+						else  {
+							object[0] = tmp;
+							object[0].name = objLoad.quality.name;
+							console.log('Successfully loaded ' + objLoad.quality.name + ' quality model. Loaded as single\n\t'
+								+ object[0].geometry.vertices.length +' vertices and ' + object[0].geometry.faces.length + ' faces.');
+							object[0].geometry.computeBoundingSphere();
+							object[0].geometry.computeBoundingBox();
+							console.log('Bounding sphere radius of the geometry is ' + object[0].geometry.boundingSphere.radius);
+						}
+						object[0].material = model[0].material;
+						scene.add(object[0]);
+						model[0] = object[0];
+						console.log('Swapped for next best object');
+						objLoad.loading = false;
+						objLoad.quality = QUALITY[objLoad.quality.value+1];
+					});
+					loader.load( objLoad.next().path );
+				}
+			}
+
+		}
+	};
+
+};
+qh = new QualityHandler();
 var container = document.createElement( 'div' );
 container.id = 'media-model-wrapper';
 container.name = 'Media Model Wrapper';
 //document.addEventListener('mousedown', function(){++mouseDown;}, false);
 //document.addEventListener('mouseup', function(){--mouseDown;}, false);
 
+var viewport, ul, distancesLayer;
+
+//path.lineRibbon.geometry = path.lineGeometry;
+path.markerGeometry.computeBoundingSphere();
+
+var camComponents = {
+ 	up: new THREE.Vector3(),
+ 	right: new THREE.Vector3(),
+ 	hDegs: 0,
+ 	vDegs: 0,
+ 	radius: 0,
+ 	start: new THREE.Vector3() };
+
+var dirLight = new THREE.DirectionalLight( 0xC8B79D );
+var cursorPLight = new THREE.PointLight( 0xffffff, 1, 1000 );
+var scene, projector, renderer, cursor, highlighted = false;
+
+var mouse = { x: 0, y: 0 }, INTERSECTED, mouse3D = { x: 0, y: 0, z: 1 };
+
+var model = [];
+var rotating = false;
+
+
+var colors = [
+	0xd10000,
+	0xff6622,
+	0xffda21,
+	0x33dd00,
+	0x1133cc,
+	0x220066,
+	0x330044
+];
+var colorAvailable = [ true, true, true, true, true, true, true ];
+
 function media_model_viewer(fileId, objPaths, mtlPaths){
 	mtlPaths = eval(mtlPaths);
+	qh.mtlLoad.default.path = mtlPaths.default;
+	qh.mtlLoad.low.path = mtlPaths.low;
+	qh.mtlLoad.med.path = mtlPaths.med;
+	qh.mtlLoad.high.path = mtlPaths.high;
+
 	objPaths = eval(objPaths);
-	console.log(objPaths);
-	var viewport, ul, distancesLayer;
-
-	//path.lineRibbon.geometry = path.lineGeometry;
-	path.markerGeometry.computeBoundingSphere();
-
-	var camComponents = {
-	 	up: new THREE.Vector3(),
-	 	right: new THREE.Vector3(),
-	 	hDegs: 0,
-	 	vDegs: 0,
-	 	radius: 0,
-	 	start: new THREE.Vector3() };
-
-	var dirLight = new THREE.DirectionalLight( 0xC8B79D );
-	var cursorPLight = new THREE.PointLight( 0xffffff, 1, 1000 );
-	var scene, projector, renderer, cursor, highlighted = false;
-
-	var mouse = { x: 0, y: 0 }, INTERSECTED, mouse3D = { x: 0, y: 0, z: 1 };
-
-	var model = [];
-	var rotating = false;
-
-
-	var colors = [
-		0xd10000,
-		0xff6622,
-		0xffda21,
-		0x33dd00,
-		0x1133cc,
-		0x220066,
-		0x330044
-	];
-	var colorAvailable = [ true, true, true, true, true, true, true ];
-
+	qh.objLoad.default.path = objPaths.default;
+	qh.objLoad.low.path = objPaths.low;
+	qh.objLoad.med.path = objPaths.med;
+	qh.objLoad.high.path = objPaths.high;
 
 	init();
 	animate();
@@ -279,11 +397,11 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 				if(pValues.length > 0)
 					loadURLdata();
 			});
-			loader.load( objPaths.low ? objPaths.low : objPaths.default , mtlPaths.low);
+			loader.load( objPaths.low, mtlPaths.low);
 
-		console.log('Starting with this obj: ');
-		console.log(objPaths.low ? objPaths.low : objPaths.default);
-		console.log('Starting with this mtl: ');
+		console.log('Loading the following obj: ');
+		console.log(objPaths.low);
+		console.log('Loading the following mtl: ');
 		console.log(mtlPaths.low);
 
 
@@ -335,13 +453,6 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		modalMessage.innerHTML = '&nbsp'
 		container.appendChild(modalMessage);
 
-		stats = new Stats();
-		stats.domElement.style.position = 'absolute';
-		stats.domElement.style.top = '0px';
-		stats.domElement.style.zIndex = 100;
-
-		fpsAvg = new FPSAvg(100);
-
 		viewport.appendChild( stats.domElement );
 		jQuery(stats.domElement).toggle();
 	} // end init
@@ -368,85 +479,12 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		}
 	}
 
-
-	function rebuildPath(newOrder){
-		scene.remove(path.lineRibbon);
-		scene.remove(markerRoot);
-		markerRoot = new THREE.Object3D();
-		scene.add(markerRoot);
-
-		//console.log(viewport.hasChildNodes());
-		while(distancesLayer.hasChildNodes()){
-			distancesLayer.removeChild(distancesLayer.lastChild);
-		}
-		var newRibbon = new THREE.Ribbon(new THREE.Geometry(), path.lineRibbon.material);
-		var newMarkers = [];
-		var newDistances = [];
-		var newColorID = [];
-		var oldIndex = -1, newIndex = -1;
-		path.distance.value = 0;
-		for(var i=0; i<newOrder.length; i++) {
-			//if(newOrder[i].id == '') continue;
-			newMarkers.push(path.markers[path.colorID.indexOf(newOrder[i].id)]);
-			newColorID.push(newOrder[i].id);
-			markerRoot.add(newMarkers[i].mesh);
-			if(i>0) {
-				newDistances.push({
-					value: newMarkers[i-1].mesh.position.distanceTo(newMarkers[i].mesh.position),
-					element: document.createElement( 'div' )
-				});
-				distancesLayer.appendChild(newDistances[i-1].element);
-				newDistances[i-1].element.className = 'media-model-floating-distance-text';
-				newDistances[i-1].element.innerHTML = newDistances[i-1].value.toFixed(2);
-				
-
-				path.distance.value += newDistances[i-1].value;
-			}
-			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position));
-			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position).add(newMarkers[i].up));
-			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
-			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
-		}
-		path.distance.element.innerHTML = path.distance.value.toFixed(2) + '\n';
-		repositionDistances();
-		path.lineRibbon = newRibbon;
-		path.markers = newMarkers;
-		path.distances = newDistances;
-		path.colorID = newColorID;
-		//console.log('Old index is ' + oldIndex + ' and new index is ' + newIndex);
-		//repositionDistances(i);
-		scene.add(path.lineRibbon);
-
-		currentURL = generateURL();
-	}
-
-
 	function animate() {
 		controls.update();
 		requestAnimationFrame( animate );
 		render();
 	}
 
-	function repositionDistances() {
-		for(var i=0; i<path.distances.length; i++){
-			positionDistance(i);
-		}
-	}
-
-	function positionDistance(i) {
-		var screenPos = new THREE.Vector3().copy(path.markers[i].mesh.position).add(path.markers[i+1].mesh.position).multiplyScalar(0.5);
-		projector.projectVector( screenPos, camera );
-		screenPos.x = ( screenPos.x * windowHalfX ) + windowHalfX;
-		screenPos.y = - ( screenPos.y * windowHalfY ) + windowHalfY * 1.3;
-		if(screenPos.x > 0 && screenPos.x < windowWidth && screenPos.y > 0 && screenPos.y < windowHeight) {
-			path.distances[i].element.style.left = screenPos.x + 'px';
-			path.distances[i].element.style.top = screenPos.y + 'px';
-			path.distances[i].element.style.visibility = 'visible';
-		}
-		else
-			path.distances[i].element.style.visibility = 'collapse';
-	}
-	var normals;
 	function render() {
 		// displays all vertex normals from origin to direction
 		/*
@@ -485,27 +523,31 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 			var modelIntersects = ray.intersectObjects(model);
 			var markerIntersects = ray.intersectObject(markerRoot, true);
 			//console.log(intersects);
+			if(modelIntersects &&  modelIntersects[0] &&  modelIntersects[0].point )
+				cursor.copy( modelIntersects[0].point );
 
 			if(modelIntersects.length > 0
 				&& (markerIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) < markerIntersects[0].point.distanceTo(camera.position))) {
-				cursor.copy( modelIntersects[0].point );
-				cursorPyr.visible = true;
+				markerHandler.clear();
 				highlighted = true;
 			}
 			else if (markerIntersects.length > 0
 				&& (modelIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) > markerIntersects[0].point.distanceTo(camera.position))) {
 				cursorPyr.visible = false;
-				cursor.copy( markerIntersects[0].object.position);
+				//cursor.copy( markerIntersects[0].object.position);
+				markerHandler.setObject(markerIntersects[0].object);
 				highlighted = true;
 			}
 			else{
 				highlighted = false;
+				markerHandler.clear();
 			}
 
 		}
 		renderer.render( scene, camera );
+		markerHandler.update();
 		stats.update();
-		fpsAvg.update();
+		qh.update();
 	}
 
 	function removePoint( colorID ){
@@ -537,6 +579,7 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		markerRoot.add(path.markers[index].mesh);
 		//path.markers[path.markers.length - 1].mesh.position.set(cursor.x, cursor.y, cursor.z);
 		path.markers[index].up = orientPyramid(path.markers[index].mesh, location);
+		path.markers[index].mesh.name = color.getHexString();
 
 		var li = document.createElement( 'li' );
 		li.className = 'marker-button';
@@ -563,10 +606,17 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		//console.log(event);
 	 if( event.which == 1 ){
 		mouse1Down = true;
+		if(markerHandler.object){
+			console.log("GRABBED!");
+			markerHandler.grabbed = true;
+		}
 			var newMouseDown = new Date().getTime();
 			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
 			if( newMouseDown - lastMouseDown < 250 ){
-				addPoint(cursor);
+				if(markerHandler.object)
+					removePoint(markerHandler.object.name);
+				else
+					addPoint(cursor);
 			}
 			lastMouseDown =  new Date().getTime();
 		}
@@ -621,6 +671,8 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 	}
 
 	function onMouseUp( event ) {
+		if(markerHandler.grabbed)
+			markerHandler.grabbed = false;
 	}
 
 	function touchEnd ( event ){
@@ -628,11 +680,11 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 	}
 
 	function onMouseOver( event ){
-		cursorPyr.visible = true;
+		//cursorPyr.visible = true;
 	}
 
 	function onMouseOut( event ){
-		cursorPyr.visible = false;
+		//cursorPyr.visible = false;
 	}
 
 	function onMouseWheel( event ){
@@ -688,34 +740,23 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 	var translationInverse = new THREE.Matrix4();
 	var matrix = new THREE.Matrix4();
 
-	function rotateAroundWorldAxis( object, axis, radians ) {
-
-    var rotationMatrix = new THREE.Matrix4();
-
-    rotationMatrix.makeRotationAxis( axis.normalize(), radians );
-    rotationMatrix.multiply( object.matrix );                       // pre-multiply
-    object.matrix = rotationMatrix;
-    object.rotation.setEulerFromRotationMatrix( object.matrix );
-	}
 
 	function panCamera(dx, dy) {
-				camComponents.up = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
-				//var upTest = new THREE.Vector3(0,1,0).applyMatrix4(camera.matrixWorld).sub(new THREE.Vector3(0,0,0).applyMatrix4(camera.matrixWorld));
-				//console.log('rotateByEuler gives us ' + camComponents.up.x + ',' + camComponents.up.y + ',' + + camComponents.up.z + ', and new method gives us ' + upTest.x + ',' + upTest.y + ',' + upTest.z);
+		camComponents.up = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
+		//var upTest = new THREE.Vector3(0,1,0).applyMatrix4(camera.matrixWorld).sub(new THREE.Vector3(0,0,0).applyMatrix4(camera.matrixWorld));
+		//console.log('rotateByEuler gives us ' + camComponents.up.x + ',' + camComponents.up.y + ',' + + camComponents.up.z + ', and new method gives us ' + upTest.x + ',' + upTest.y + ',' + upTest.z);
 
-				camComponents.right = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
-				//cameraSideMotion.cross(cameraUpMotion, forwardVector);
+		camComponents.right = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
+		//cameraSideMotion.cross(cameraUpMotion, forwardVector);
 
-				camComponents.right.multiplyScalar(dx * 0.2);
-				camComponents.up.multiplyScalar(-dy * 0.2);
+		camComponents.right.multiplyScalar(dx * 0.2);
+		camComponents.up.multiplyScalar(-dy * 0.2);
 
-				camera.position.add(camComponents.up);
-				camera.position.add(camComponents.right);
+		camera.position.add(camComponents.up);
+		camera.position.add(camComponents.right);
 	}
 
-	function rotateVectorForObject( vector, matrix){
-		return new THREE.Vector3().copy(vector).applyMatrix4(matrix).sub(new THREE.Vector3(0,0,0).applyMatrix4(matrix));
-	}
+
 	function rotateVectorByEuler(vector, x, y, z){
 		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1,0,0), x));
 		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,1,0), y));
@@ -791,7 +832,88 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		}
 	});
 }
+	function positionDistance(i) {
+		var screenPos = new THREE.Vector3().copy(path.markers[i].mesh.position).add(path.markers[i+1].mesh.position).multiplyScalar(0.5);
+		projector.projectVector( screenPos, camera );
+		screenPos.x = ( screenPos.x * windowHalfX ) + windowHalfX;
+		screenPos.y = - ( screenPos.y * windowHalfY ) + windowHalfY * 1.3;
+		if(screenPos.x > 0 && screenPos.x < windowWidth && screenPos.y > 0 && screenPos.y < windowHeight) {
+			path.distances[i].element.style.left = screenPos.x + 'px';
+			path.distances[i].element.style.top = screenPos.y + 'px';
+			path.distances[i].element.style.visibility = 'visible';
+		}
+		else
+			path.distances[i].element.style.visibility = 'collapse';
+	}
+function repositionDistances() {
+	for(var i=0; i<path.distances.length; i++){
+		positionDistance(i);
+	}
+}
 
+function rebuildPath(newOrder){
+		scene.remove(path.lineRibbon);
+		scene.remove(markerRoot);
+		markerRoot = new THREE.Object3D();
+		scene.add(markerRoot);
+
+		//console.log(viewport.hasChildNodes());
+		while(distancesLayer.hasChildNodes()){
+			distancesLayer.removeChild(distancesLayer.lastChild);
+		}
+		var newRibbon = new THREE.Ribbon(new THREE.Geometry(), path.lineRibbon.material);
+		var newMarkers = [];
+		var newDistances = [];
+		var newColorID = [];
+		var oldIndex = -1, newIndex = -1;
+		path.distance.value = 0;
+		for(var i=0; i<newOrder.length; i++) {
+			//if(newOrder[i].id == '') continue;
+			newMarkers.push(path.markers[path.colorID.indexOf(newOrder[i].id)]);
+			newColorID.push(newOrder[i].id);
+			markerRoot.add(newMarkers[i].mesh);
+			if(i>0) {
+				newDistances.push({
+					value: newMarkers[i-1].mesh.position.distanceTo(newMarkers[i].mesh.position),
+					element: document.createElement( 'div' )
+				});
+				distancesLayer.appendChild(newDistances[i-1].element);
+				newDistances[i-1].element.className = 'media-model-floating-distance-text';
+				newDistances[i-1].element.innerHTML = newDistances[i-1].value.toFixed(2);
+				path.distance.value += newDistances[i-1].value;
+			}
+			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position));
+			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position).add(newMarkers[i].up));
+			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
+			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
+		}
+		path.distance.element.innerHTML = path.distance.value.toFixed(2) + '\n';
+		repositionDistances();
+		path.lineRibbon = newRibbon;
+		path.markers = newMarkers;
+		path.distances = newDistances;
+		path.colorID = newColorID;
+		//console.log('Old index is ' + oldIndex + ' and new index is ' + newIndex);
+		//repositionDistances(i);
+		scene.add(path.lineRibbon);
+
+		currentURL = generateURL();
+	}
+
+
+function rotateVectorForObject( vector, matrix){
+	return new THREE.Vector3().copy(vector).applyMatrix4(matrix).sub(new THREE.Vector3(0,0,0).applyMatrix4(matrix));
+}
+
+function rotateAroundWorldAxis( object, axis, radians ) {
+
+    var rotationMatrix = new THREE.Matrix4();
+
+    rotationMatrix.makeRotationAxis( axis.normalize(), radians );
+    rotationMatrix.multiply( object.matrix );                       // pre-multiply
+    object.matrix = rotationMatrix;
+    object.rotation.setEulerFromRotationMatrix( object.matrix );
+}
 function generateURL() {
 	var URL = location.origin + location.pathname + '?' + 'cam=';
 	for(var i=0; i<16; i++) {

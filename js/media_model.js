@@ -12,9 +12,10 @@ if(pValues[pValues.length-1]=='')
 
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
 var camera, controls, helpOverlay, helpPrompt, lastDownTarget;
-var rotRadius = 100, windowWidth = 800, windowHeight = 600, 
+var defaultWindow = {width: 800, height: 600};
+var rotRadius = 100, windowWidth = defaultWindow.width, windowHeight = defaultWindow.height, 
 		windowHalfX = windowWidth / 2, windowHalfY = windowHeight / 2;
-var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
+var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton,
 		path = {
 		markers: [],
 		colorID: [],
@@ -33,9 +34,11 @@ var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton
 var MarkerHandler = function(){
 	var object, up, domObject, grabbed, lastClick;
 	return{				
-		setObject:function(object){
-			this.object = object;
-			up = rotateVectorForObject(new THREE.Vector3(0,1,0), object.matrixWorld);
+		setObject:function(selectedObject){
+			//selectedObject.scale.set(1.6, 1.6, 1.6);
+			this.object = selectedObject;
+			this.up = rotateVectorForObject(new THREE.Vector3(0,1,0), this.object.matrixWorld);
+			//this.object.scale.set(1.6, 1.6, 1.6);
 			domObject = document.getElementById(this.object.name);
 			return null;
 		},
@@ -45,12 +48,15 @@ var MarkerHandler = function(){
 					this.object.position.set(cursor.x, cursor.y, cursor.z);
 					rebuildPath(ul.children);
 				}
-				else
-					rotateAroundWorldAxis(this.object, up, 0.05);
+				else{//console.log("spin");
+					rotateAroundWorldAxis(this.object, this.up, 0.05);
+				}
 			return null;
 		},
 		clear:function(){
 			if(!this.grabbed){
+				if(this.object)
+					this.object.scale.set(1, 1, 1);
 				cursorPyr.visible = true;
 				return (this.object = null);
 			}
@@ -78,15 +84,15 @@ var FPSAvg = function(n){
 	};
 };
 var QUALITY = [
-	{value: 0, name: "default"},
-	{value: 1, name: "low"}, 
-	{value: 2, name: "med"}, 
-	{value: 3, name: "high"}
+	{value: 0, name: 'default'},
+	{value: 1, name: 'low'}, 
+	{value: 2, name: 'med'}, 
+	{value: 3, name: 'high'}
 ];
 
-var Load = function(){
+var Load = function(modifiedFilesExist){
 	var loading = false;
-	var quality = QUALITY[1];
+	var quality = QUALITY[modifiedFilesExist ? 1 : 0];
 	var ready = false;
 	return{
 		quality: quality,
@@ -95,33 +101,34 @@ var Load = function(){
 		next: function(){
 			return  QUALITY[this.quality.value+1] ? this[QUALITY[this.quality.value+1].name] : {path: null};
 		},
-		default: {path: null},
-		low: {path: null},
-		med: {path: null},
-		high: {path: null},
+		default: {path: null, name: 'default'},
+		low: {path: null, name: 'low'},
+		med: {path: null, name: 'med'},
+		high: {path: null, name: 'high'},
 	};
 };
 
-var QualityHandler = function(){
-	var mtlLoad = new Load(), objLoad = new Load(), fpsAvg = new FPSAvg(100);
+var QualityHandler = function(modObjs, modMtls){
+	var mtlLoad = new Load(modObjs), objLoad = new Load(modMtls), fpsAvg = new FPSAvg(100);
 	var material, object;
 	return{
 		objLoad: objLoad,
 		mtlLoad: mtlLoad,
 		update:function(){
 			if(fpsAvg.update()>15){
-				if(!objLoad.loading && objLoad.next().path ) {
+				if(!objLoad.loading && objLoad.next().path) {
+					console.log('FPS is stable, attempting to download ' + objLoad.next().name + ' quality model');
 					object = [];
 					objLoad.loading = true;
 					var loader = new THREE.OBJLoader();
 					loader.addEventListener( 'load', function ( event ) {
 						var tmp = event.content;
-						console.log("Loaded from: " + objLoad.next().path);
+						console.log('Loaded from: ' + objLoad.next().path);
 						if(tmp.children.length>0)
 							for( var i = 0; i<tmp.children.length; i++ ){
 								object.push( tmp.children[i] );
-								object[i].name = objLoad.quality.name;
-								console.log('Successfully loaded ' + objLoad.quality.name + ' quality model portion ' + i + '\n\t'
+								object[i].name = objLoad.next().name;
+								console.log('Successfully loaded ' + objLoad.next().name + ' quality model portion ' + i + '\n\t'
 								 + object[i].geometry.vertices.length +' vertices and ' + object[i].geometry.faces.length + ' faces.');
 								object[i].geometry.computeBoundingSphere();
 								object[i].geometry.computeBoundingBox();
@@ -129,8 +136,8 @@ var QualityHandler = function(){
 							}
 						else  {
 							object[0] = tmp;
-							object[0].name = objLoad.quality.name;
-							console.log('Successfully loaded ' + objLoad.quality.name + ' quality model. Loaded as single\n\t'
+							object[0].name = objLoad.next().name;
+							console.log('Successfully loaded ' + objLoad.next().name + ' quality model. Loaded as single\n\t'
 								+ object[0].geometry.vertices.length +' vertices and ' + object[0].geometry.faces.length + ' faces.');
 							object[0].geometry.computeBoundingSphere();
 							object[0].geometry.computeBoundingBox();
@@ -139,11 +146,40 @@ var QualityHandler = function(){
 						object[0].material = model[0].material;
 						scene.add(object[0]);
 						model[0] = object[0];
-						console.log('Swapped for next best object');
+						console.log('Swapped for ' + objLoad.next().name + ' quality object');
 						objLoad.loading = false;
 						objLoad.quality = QUALITY[objLoad.quality.value+1];
+						processing = false;
 					});
 					loader.load( objLoad.next().path );
+				}
+				if(!mtlLoad.loading && mtlLoad.next().path) {
+					console.log('FPS is stable, attempting to download ' + mtlLoad.next().name + ' quality material');
+					mtlLoad.loading = true;
+					var result = THREE.ImageUtils.loadTexture(mtlLoad.next().path.replace('.obj.mtl', '.jpg'), {}, function() {
+						console.log('Successfully loaded ' + objLoad.next().name + ' quality material');
+						model[0].material.map = result;
+						model[0].material.needsUpdate = true;
+						console.log('Swapped for ' + mtlLoad.next().name + ' quality material');
+						mtlLoad.loading = false;
+						mtlLoad.quality = QUALITY[mtlLoad.quality.value+1];
+					});
+					/*
+					var loader = new THREE.MTLLoader();
+					loader.addEventListener( 'load', function ( event ) {
+						while(processing){;}
+						processing = true;
+						var materialsCreator = event.content;
+						console.log('Loaded ' + materialsCreator.materialsInfo.material_0.name + ' from: ' + mtlLoad.next().path);
+						material = materialsCreator.create( model[0].material.name );
+						material.side = THREE.DoubleSide;
+						//model[0].material = material
+						mtlLoad.loading = false;
+						mtlLoad.quality = QUALITY[mtlLoad.quality.value+1];
+						processing = false;
+					});
+					loader.load( mtlLoad.next().path );
+					*/
 				}
 			}
 
@@ -151,7 +187,6 @@ var QualityHandler = function(){
 	};
 
 };
-qh = new QualityHandler();
 var container = document.createElement( 'div' );
 container.id = 'media-model-wrapper';
 container.name = 'Media Model Wrapper';
@@ -191,27 +226,15 @@ var colors = [
 	0x330044
 ];
 var colorAvailable = [ true, true, true, true, true, true, true ];
-
 function media_model_viewer(fileId, objPaths, mtlPaths){
 	mtlPaths = eval(mtlPaths);
-	qh.mtlLoad.default.path = mtlPaths.default;
-	qh.mtlLoad.low.path = mtlPaths.low;
-	qh.mtlLoad.med.path = mtlPaths.med;
-	qh.mtlLoad.high.path = mtlPaths.high;
-
 	objPaths = eval(objPaths);
-	qh.objLoad.default.path = objPaths.default;
-	qh.objLoad.low.path = objPaths.low;
-	qh.objLoad.med.path = objPaths.med;
-	qh.objLoad.high.path = objPaths.high;
 
 	init();
 	animate();
 
 	function init(){
-
-		var parent = document.getElementById( 'file-'.concat(fileId) );
-		parent.appendChild( container );
+		container = document.getElementById( 'file-'.concat(fileId) );
 
 		helpOverlay = document.getElementsByClassName('media-model-help-overlay')[0];
 		helpPrompt = document.getElementsByClassName('media-model-help-prompt')[0];
@@ -356,7 +379,7 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 				// TODO: combine all models which are loaded in 
 				for( var i = 0; i<tmp.children.length; i++ ){
 					model.push( tmp.children[i] );
-					model[i].name = "model";
+					model[i].name = 'model';
 					// we enable flipSided and doubleSided to try to render the back of our model
 					//model[i].flipSided = true;
 					//model[i].doubleSided = true;
@@ -396,8 +419,19 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 				cursor = new THREE.Vector3( model[0].position.x, model[0].position.y, model[0].position.y );
 				if(pValues.length > 0)
 					loadURLdata();
+		
+				
+				qh = new QualityHandler(objPaths.low, mtlPaths.low);
+				qh.mtlLoad.default.path = mtlPaths.default;
+				qh.mtlLoad.low.path = mtlPaths.low;
+				qh.mtlLoad.med.path = mtlPaths.med;
+				qh.mtlLoad.high.path = mtlPaths.high;
+				qh.objLoad.default.path = objPaths.default;
+				qh.objLoad.low.path = objPaths.low;
+				qh.objLoad.med.path = objPaths.med;
+				//qh.objLoad.high.path = objPaths.high;
 			});
-			loader.load( objPaths.low, mtlPaths.low);
+			loader.load( objPaths.low ? objPaths.low : objPaths.default, mtlPaths.low ? mtlPaths.low : mtlPaths.default);
 
 		console.log('Loading the following obj: ');
 		console.log(objPaths.low);
@@ -455,6 +489,7 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 
 		viewport.appendChild( stats.domElement );
 		jQuery(stats.domElement).toggle();
+
 	} // end init
 
 	function loadURLdata() {
@@ -484,7 +519,21 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		requestAnimationFrame( animate );
 		render();
 	}
-
+	var fs = false
+	var fullscreenToggle = function() {
+		if(fs=!fs) {
+			jQuery(viewport).detach().prependTo('#page-wrapper');
+			windowWidth = window.innerWidth;
+			windowHeight = window.innerHeight;
+			renderer.setSize( windowWidth, windowHeight );
+		}
+		else {
+			jQuery(viewport).detach().appendTo(container);
+			windowWidth = defaultWindow.width;
+			windowHeight = defaultWindow.height;
+			renderer.setSize( windowWidth, windowHeight );
+		}
+	}
 	function render() {
 		// displays all vertex normals from origin to direction
 		/*
@@ -503,6 +552,9 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 
 		if(keyInput != null) {
 			switch(keyInput) {
+				case 'f':
+					fullscreenToggle();
+					break;
 				case 'h':
 					jQuery(helpOverlay).toggle();
 					jQuery(helpPrompt).toggle();
@@ -547,7 +599,7 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		renderer.render( scene, camera );
 		markerHandler.update();
 		stats.update();
-		qh.update();
+		if(qh) qh.update();
 	}
 
 	function removePoint( colorID ){
@@ -607,7 +659,7 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 	 if( event.which == 1 ){
 		mouse1Down = true;
 		if(markerHandler.object){
-			console.log("GRABBED!");
+			console.log('GRABBED!');
 			markerHandler.grabbed = true;
 		}
 			var newMouseDown = new Date().getTime();
@@ -836,7 +888,7 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		var screenPos = new THREE.Vector3().copy(path.markers[i].mesh.position).add(path.markers[i+1].mesh.position).multiplyScalar(0.5);
 		projector.projectVector( screenPos, camera );
 		screenPos.x = ( screenPos.x * windowHalfX ) + windowHalfX;
-		screenPos.y = - ( screenPos.y * windowHalfY ) + windowHalfY * 1.3;
+		screenPos.y = - ( screenPos.y * windowHalfY ) + windowHalfY;
 		if(screenPos.x > 0 && screenPos.x < windowWidth && screenPos.y > 0 && screenPos.y < windowHeight) {
 			path.distances[i].element.style.left = screenPos.x + 'px';
 			path.distances[i].element.style.top = screenPos.y + 'px';
@@ -964,7 +1016,7 @@ jQuery.fn.extend({
 	disableSelection : function() { 
 		return this.each(function() { 
 			this.onselectstart = function() { return false; }; 
-			this.unselectable = "on"; 
+			this.unselectable = 'on'; 
 			jQuery(this).css('user-select', 'none'); 
 			jQuery(this).css('-o-user-select', 'none'); 
 			jQuery(this).css('-moz-user-select', 'none'); 
@@ -1038,6 +1090,9 @@ jQuery(document).ready(function(){
 
 	document.addEventListener('keydown', function (event) {
 		switch(event.keyCode){
+			case 70: 
+				keyInput = 'f';
+				break;
 			case 72: 
 				keyInput = 'h';
 				break;

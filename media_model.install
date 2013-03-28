@@ -10,17 +10,14 @@
  */
 function media_model_install() {
   $types['3dmodel'] = new stdClass();
+  $types['3dmodel']->type = '3dmodel';
   $types['3dmodel']->name = '3dmodel';
   $types['3dmodel']->label = "3D Model";
   $types['3dmodel']->base = TRUE;
-  $types['3dmodel']->type_callback_args = array(
-    'match_type' => 'all',
-    'mimetypes' => array('/^3dmodel/'),
-    'extensions' => array('obj'),
-    'streams' => array('public', 'private'),
-  );
+  $types['3dmodel']->mimetypes = array('/^3dmodel/');
+  $types['3dmodel']->streams = array('public', 'private');
 
-  media_type_save($types['3dmodel']);
+  file_type_save($types['3dmodel']);
   $bundle_settings = field_bundle_settings('file', '3dmodel');
   $bundle_settings['extra_fields']['display']['file']['media_small'] = array('weight' => 0, 'visible' => FALSE);
   field_bundle_settings('file', '3dmodel', $bundle_settings);

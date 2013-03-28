@@ -187,7 +187,7 @@ function media_model_get_materials( $objFileName, $objPath){
       if(!file_exists($modJpgPath)){
         $command = 'convert ' . drupal_realpath($baseJpgPath) . ' -resize ' . $pixels . 'x' . $pixels . ' '. drupal_realpath($modJpgPath);
         exec($command, $output=array());
-        dpm($output);
+        //dpm($output);
       }
       $mtlPaths[$type] = file_create_url($modMtlPath);
     }

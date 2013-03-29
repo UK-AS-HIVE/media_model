@@ -165,7 +165,7 @@ function media_model_get_materials( $objFileName, $objPath){
   $types = array(
     'low' => 512,
     'med' => 2048,
-    'high' => 4098,
+    'high' => 4096,
   );
   $mtlPaths = array();
 

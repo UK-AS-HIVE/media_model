@@ -1,24 +1,5 @@
 <?php
 
-/**
- *  Implement hook_menu.
- */
-/*function media_model_menu()
-{
-  return array(
-    'file/%/3d' => array(
-      'page callback' => 'media_model_modelview',
-      'page arguments' => array(1),
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('access content'),
-    ),
-  );
-}
-
-function media_model_modelview($fid) {
-  return $fid;
-}*/
-
 function media_model_file_view_alter(&$build, $type = 'file') {
   // check to make sure it's a file type we support
   if (!isset($build['file']['#file']))
@@ -32,57 +13,6 @@ function media_model_file_view_alter(&$build, $type = 'file') {
   $build['file']['#theme'] = 'model';
 }
 
-/**
- * Implements hook_library().
- */
-/*function media_model_library() {
-  $path = libraries_get_path('GLGE');
-  $libraries = array();
-
-  $libraries['GLGE'] = array(
-    'title' => 'GLGE WebGL Engine',
-    'website' => 'http://glge.org/',
-    'version' => '0.9',
-    'js' => array(
-      // The mediaelement script detects the path to itself to call other files
-      // in the same location. With preprocessing this is problematic as the
-      // script is no longer in the same directory as its other assets. There
-      // is an option that can be passed into the script with its location.
-      // @todo Update all calls to mediaelement to pass in the assets location.
-      $path . '/glge-compiled.js' => array('group' => JS_LIBRARY, 'preprocess' => FALSE),
-    ),
-  );
-  return $libraries;
-}*/
-
-/**
- * Implements hook_file_type_info().
- */
-/*function media_model_file_type_info() {
-  return array(
-    'model_obj' => array(
-      'label' => t('3D Model in .OBJ format'),
-      'description' => t('A static polygonal 3D model'),
-      'claim callback' => 'media_model_file_type_model_claim',
-      'default view callback' => 'media_model_file_type_model_default_view',
-      'weight' => -1000,
-    ),
-  );
-}
-
-function media_model_file_type_model_claim($file, $type) {
-  dpm($file);
-  return TRUE;
-}
-
-function media_model_file_type_model_default_view($file, $view_mode, $langcode) {
-  dpm($file);
-  return array(
-    '#type' => 'model',
-    '#title' => $file->filename . ' NOAHTESTING',
-    '#href' => file_create_url($file->uri),
-  );
-}*/
 
 /**
  * Implements hook_file_formatter_info().
@@ -116,29 +46,6 @@ function media_model_field_formatter_info() {
 
   return $formatters;
 }
-
-/**
- * Implements hook_field_formatter_view().
- */
-/*function media_model_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
-  //dpm($entity);
-  //dpm($display);
-  //dpm($items);
-  $element = array();
-
-  foreach ($items as $delta => $item) {
-    $settings = $display['settings'];
-    if ($display['type'] == 'glge_objloader') {
-      dpm($item);
-      $element[$delta] = array(
-        '#theme' => 'model',
-        '#file' => $item,
-      );
-    }
-  }
-
-  return $element;
-}*/
 
 /**
  * Implements hook_theme().

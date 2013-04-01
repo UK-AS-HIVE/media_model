@@ -1,20 +1,16 @@
-var objPath, mtlPath, fileId, stats, fps, savedNotes = [], qh;
+var objPaths, mtlPaths, fileId, savedNotes = [], qh, parent, wrapper = document.createElement('div');
+wrapper.id = 'media-model-wrapper';
+wrapper.name = 'Media Model Wrapper';
 var keyInput = null;
 
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
 	pValues.pop();
 
-	stats = new Stats();
-	stats.domElement.style.position = 'absolute';
-	stats.domElement.style.top = '0px';
-	stats.domElement.style.zIndex = 100;
-
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
 var camera, controls, helpOverlay, helpPrompt, lastDownTarget;
 var defaultWindow = {width: 800, height: 600};
-var rotRadius = 100, windowWidth = defaultWindow.width, windowHeight = defaultWindow.height, 
-		windowHalfX = windowWidth / 2, windowHalfY = windowHeight / 2;
+var rotRadius = 100, windowWidth, windowHeight, windowHalfX, windowHalfY;
 var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton,
 		path = {
 		markers: [],
@@ -31,6 +27,12 @@ var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton,
 		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, vertexColors: true } ))
 		};
 
+function resetWindow(w, h){
+	windowWidth = w;
+	windowHeight = h;
+	windowHalfX = windowWidth / 2;
+	windowHalfY = windowHeight / 2;
+}
 var MarkerHandler = function(){
 	var object, up, domObject, grabbed, lastClick;
 	return{				
@@ -70,10 +72,14 @@ var markerHandler = new MarkerHandler();
 var mouseDown = 0;
 
 var FPSAvg = function(n){
-	var lastNFrames = [], avg = 0, factor = 1/n;
+	var lastNFrames = [], avg = 0, factor = 1/n, last = Date.now();
 	return{
 		update:function(){
-			lastNFrames.push(factor*fps);
+			var curr = Date.now(), myfps=Math.round(1E3/(curr-last));
+			last = curr;
+			if(Date.now()>last+1E3)
+				returnnull;
+			lastNFrames.push(factor*(myfps));
 			avg += lastNFrames[lastNFrames.length-1];
 			if(lastNFrames.length>n) {
 				avg -= lastNFrames.shift();
@@ -164,22 +170,6 @@ var QualityHandler = function(modObjs, modMtls){
 						mtlLoad.loading = false;
 						mtlLoad.quality = QUALITY[mtlLoad.quality.value+1];
 					});
-					/*
-					var loader = new THREE.MTLLoader();
-					loader.addEventListener( 'load', function ( event ) {
-						while(processing){;}
-						processing = true;
-						var materialsCreator = event.content;
-						console.log('Loaded ' + materialsCreator.materialsInfo.material_0.name + ' from: ' + mtlLoad.next().path);
-						material = materialsCreator.create( model[0].material.name );
-						material.side = THREE.DoubleSide;
-						//model[0].material = material
-						mtlLoad.loading = false;
-						mtlLoad.quality = QUALITY[mtlLoad.quality.value+1];
-						processing = false;
-					});
-					loader.load( mtlLoad.next().path );
-					*/
 				}
 			}
 
@@ -187,9 +177,6 @@ var QualityHandler = function(modObjs, modMtls){
 	};
 
 };
-var container = document.createElement( 'div' );
-container.id = 'media-model-wrapper';
-container.name = 'Media Model Wrapper';
 //document.addEventListener('mousedown', function(){++mouseDown;}, false);
 //document.addEventListener('mouseup', function(){--mouseDown;}, false);
 
@@ -226,15 +213,12 @@ var colors = [
 	0x330044
 ];
 var colorAvailable = [ true, true, true, true, true, true, true ];
-function media_model_viewer(fileId, objPaths, mtlPaths){
-	mtlPaths = eval(mtlPaths);
-	objPaths = eval(objPaths);
-
-	init();
-	animate();
 
 	function init(){
 		container = document.getElementById( 'file-'.concat(fileId) );
+		jQuery(container).prepend(wrapper)
+		defaultWindow = {width: jQuery(wrapper).width(), height: jQuery(wrapper).height() };
+		resetWindow(defaultWindow.width, defaultWindow.height);
 
 		helpOverlay = document.getElementsByClassName('media-model-help-overlay')[0];
 		helpPrompt = document.getElementsByClassName('media-model-help-prompt')[0];
@@ -246,20 +230,19 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		jQuery(helpOverlay).hide();
 		viewport.appendChild( helpPrompt );
 		
-		container.appendChild( viewport );
+		wrapper.appendChild( viewport );
 
 		pathControls = document.createElement( 'div' );
 		pathControls.id = 'media-model-path-controls';
 
 		var pathDistanceNode = document.createElement('span');
-		pathDistanceNode.innerHTML = 'Path distance: <br>';
+		pathDistanceNode.innerHTML = 'Path distance: ';
 		pathDistanceNode.className = 'media-model-path-control-text';
-		pathControls.appendChild(pathDistanceNode);
+		//pathControls.appendChild(pathDistanceNode);
 
 		path.distance.element.innerHTML = '0';
 		path.distance.element.id = 'media-model-path-distance';
-		pathControls.appendChild(path.distance.element);
-		container.appendChild( pathControls );
+		//pathControls.appendChild(path.distance.element);
 
 		URLButton = document.createElement( 'button' );
 		URLButton.className = 'media-model-path-control-button';
@@ -270,7 +253,6 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 			.click(function () {
   			window.prompt ('Copy this URL:', generateURL());
 		});
-		pathControls.appendChild(document.createElement('br'));
 
 		loadNoteButton = document.createElement( 'button' );
 		loadNoteButton.className = 'media-model-path-control-button';
@@ -289,6 +271,7 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		pathControls.appendChild(addNoteButton);
 		jQuery( '#media-model-save-note-button' )
       		.click(function() {
+      			console.log('clicked');
         	jQuery( '#media-model-addnote-form' ).dialog( 'open' );
       	});
 
@@ -297,24 +280,23 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		//document.removeChild(addNoteButton);
 		//addNoteButton.addClass('media-model-path-control-button');
 		//addNoteButton.html('Save note to server');
-		pathControls.appendChild(document.createElement('br'));
+		viewport.appendChild( pathControls );
 
 		var markerListNode = document.createElement('span');
 		markerListNode.innerHTML = 'Marker list: <br>';
 		markerListNode.className = 'media-model-path-control-text';
 		pathControls.appendChild(markerListNode);
+		markerListNode.style.visibility = 'collapse';
 
 		ul = document.createElement( 'ul' );
 		ul.id = 'sortable';
-		pathControls.appendChild(ul);
+		markerListNode.appendChild(ul);
 		jQuery(function(){
 			jQuery( '#sortable' ).sortable({
 				update: function(event,ui){
 					rebuildPath(ui.item.context.parentNode.children);
 				},
 				out: function(event,ui){
-					//console.log(ui.item.context.style.opacity);
-					//removePoint(ui.item.context.id);
 					ui.item.context.style.opacity = 0.4;
 				},
 				over: function(event,ui){
@@ -332,19 +314,6 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 			});
 			jQuery( '#sortable' ).disableSelection();
 		});
-
-
-		jQuery(viewport).bind('click mouseup mousedown', function(e) {
-			if(e.which == 2 || e.which == 1){
-				e.preventDefault();
-				//e.stopPropagation();
-				e.stopImmediatePropagation();
-				return false;
-			}
-			return e;
-		});
-
-		//camera.far = 5;
 
 		// create scene and establish lighting
 		scene = new THREE.Scene();
@@ -366,12 +335,10 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 
 		// one directional light which will follow behind our camera to highlight what we view
 		dirLight.position.set( 0, 0, 1 ).normalize();
-		//dirLight.parent = camera;
 		scene.add( dirLight );
 
 		projector = new THREE.Projector();
 		var loader = new THREE.OBJMTLLoader();
-			//loader.addEventListener( 'complete', );
 			loader.addEventListener( 'load', function ( event ) {
 				var tmp = event.content;
 				console.log(tmp);
@@ -467,14 +434,14 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		viewport.appendChild( distancesLayer );
 
 		viewport.appendChild( renderer.domElement );
-		viewport.addEventListener( 'mousemove', onMouseMove, false );
+		/*viewport.addEventListener( 'mousemove', onMouseMove, false );
 		viewport.addEventListener( 'mousedown', onMouseDown, false );
 		viewport.addEventListener( 'mouseup', onMouseUp, false );
 		viewport.addEventListener( 'DOMMouseScroll', onMouseWheel, false );
 		viewport.addEventListener( 'mousewheel', onMouseWheel, false );
 		viewport.addEventListener( 'mouseover', onMouseOver, false);
 		viewport.addEventListener( 'mouseout', onMouseOut, false);
-		viewport.addEventListener( 'keydown', onKeyDown, false);
+		viewport.addEventListener( 'keydown', onKeyDown, false);*/
 
 		//viewport.addEventListener( 'touchstart', touchStart, false);
 		//viewport.addEventListener( 'touchmove', touchMove, false);
@@ -486,10 +453,6 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		modalMessage.id = 'modal-message';
 		modalMessage.innerHTML = '&nbsp'
 		container.appendChild(modalMessage);
-
-		viewport.appendChild( stats.domElement );
-		jQuery(stats.domElement).toggle();
-
 	} // end init
 
 	function loadURLdata() {
@@ -523,14 +486,27 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 	var fullscreenToggle = function() {
 		if(fs=!fs) {
 			jQuery(viewport).detach().prependTo('#page-wrapper');
-			windowWidth = window.innerWidth;
-			windowHeight = window.innerHeight;
+			resetWindow(window.innerWidth, window.innerHeight);
+	    	camera.aspect = windowWidth/ windowHeight;
+	    	camera.updateProjectionMatrix();
 			renderer.setSize( windowWidth, windowHeight );
 		}
 		else {
-			jQuery(viewport).detach().appendTo(container);
-			windowWidth = defaultWindow.width;
-			windowHeight = defaultWindow.height;
+			jQuery(viewport).detach().prependTo(wrapper);
+			resetWindow(defaultWindow.width, defaultWindow.height);
+	    	camera.aspect = windowWidth/ windowHeight;
+	    	camera.updateProjectionMatrix();
+			renderer.setSize( windowWidth, windowHeight );
+		}
+	}
+	window.addEventListener( 'resize', onWindowResize, false );
+
+	function onWindowResize(){
+		if(fs){
+			windowWidth = window.innerWidth;
+			windowHeight = window.innerHeight;
+	    	camera.aspect = windowWidth/ windowHeight;
+	    	camera.updateProjectionMatrix();
 			renderer.setSize( windowWidth, windowHeight );
 		}
 	}
@@ -550,21 +526,6 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		}
 		*/
 
-		if(keyInput != null) {
-			switch(keyInput) {
-				case 'f':
-					fullscreenToggle();
-					break;
-				case 'h':
-					jQuery(helpOverlay).toggle();
-					jQuery(helpPrompt).toggle();
-					break;
-				case '`':
-					jQuery(stats.domElement).toggle();
-					break;
-			}
-			keyInput = null;
-		}
 		//console.log(scene.children);
 		// check for cursor going over model
 		if ( model.length > 0 ){
@@ -598,9 +559,9 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		}
 		renderer.render( scene, camera );
 		markerHandler.update();
-		stats.update();
 		if(qh) qh.update();
 	}
+
 
 	function removePoint( colorID ){
 		for( var i=0; i<ul.children.length; i++) {
@@ -609,6 +570,7 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
     			jQuery('#'+colorID).sortable('destroy'); //call widget-function destroy
     			jQuery('.ui-sortable-placeholder').remove();
 				colorAvailable[colors.indexOf(parseInt(colorID, 16))] = true;
+				//delete(markerHandler.object);
 				break;
 			}
 		}
@@ -619,6 +581,8 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 
 	function addPoint(location) {
 		var color = colorChooser();
+		console.log("adding new point of ");
+		console.log(color);
 		if(color==false) return;
 		var markerMaterial = new THREE.MeshPhongMaterial();
 		markerMaterial.color = color;
@@ -653,112 +617,11 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		//model[0].visible = false;
 	}
 
-	var lastMouseDown = new Date().getTime();
-	function onMouseDown( event ) {
-		//console.log(event);
-	 if( event.which == 1 ){
-		mouse1Down = true;
-		if(markerHandler.object){
-			console.log('GRABBED!');
-			markerHandler.grabbed = true;
-		}
-			var newMouseDown = new Date().getTime();
-			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
-			if( newMouseDown - lastMouseDown < 250 ){
-				if(markerHandler.object)
-					removePoint(markerHandler.object.name);
-				else
-					addPoint(cursor);
-			}
-			lastMouseDown =  new Date().getTime();
-		}
-	}
-	function touchStart ( event ) {
-		
-	}
 
-	function onKeyDown ( event ) {
-		console.log(event);
-	}
-
-	function onMouseMove( event ) {
-		if ( !event.altKey && rotating ) {
-				rotating = false;
-				controls.state = -1;
-				controls.center = new THREE.Vector3();
-		}
-		// don't do anything unless we have a model loaded!
-		if( model[0] && !rotating){
-			//var cursorPyrUp = new THREE.Vector3();
-			orientPyramid( cursorPyr, cursor);
-		}
-		if( mouse.x && mouse.y ){
-			var dx = mouse.x - event.offsetX;
-			var dy = mouse.y - event.offsetY;
-			if( event.which == 1 ){
-				if( event.altKey && !rotating ) {
-					rotating = true;
-					controls.center = cursorPyr.position;
-				}
-				else{
-					camera.rotation.x += dy * 0.002;
-					camera.rotation.y += dx * 0.002;
-				}
-			}
-			else if( event.which == 2 ){
-				//var forwardVector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
-				//projector.unprojectVector(forwardVector, camera);
-				//forwardVector.normalize();
-				panCamera(dx, dy);
-			}
-		}
-		// update our known 2d/3d mouse coordinates
-		mouse.x = event.offsetX;
-		mouse.y = event.offsetY;
-		mouse3D.x = ( event.offsetX / windowWidth ) * 2 - 1;
-		mouse3D.y = - ( event.offsetY / windowHeight ) * 2 + 1;
-	}
-	function touchMove ( event ){
-		
-	}
-
-	function onMouseUp( event ) {
-		if(markerHandler.grabbed)
-			markerHandler.grabbed = false;
-	}
-
-	function touchEnd ( event ){
-		
-	}
-
-	function onMouseOver( event ){
-		//cursorPyr.visible = true;
-	}
-
-	function onMouseOut( event ){
-		//cursorPyr.visible = false;
-	}
-
-	function onMouseWheel( event ){
-		// don't let the window scroll away!
-		event.preventDefault();
-		// we want a direction vector which points inside from the location of the camera
-		var direction = new THREE.Vector3();
-		direction.copy( cursor );
-		// we use model[0] since it seems to contain "most" of the model data
-		direction.sub( camera.position );
-		if((direction.lengthSq() > 100 || event.wheelDelta < 0)
-		 	&& (direction.lengthSq() < 1000000 || event.wheelDelta > 0)) {
-			direction.normalize();
-			direction.multiplyScalar( windowWidth / 100 * event.wheelDelta / ( Math.abs( event.wheelDelta ) ) );
-			camera.position.add(direction);
-		}
-		
-	}
-
-	jQuery(container).disableSelection();
+	jQuery(wrapper).disableSelection();
 	jQuery(viewport).disableSelection();
 	jQuery(pathControls).disableSelection();
+	jQuery(distancesLayer).disableSelection();
 
 	function orientPyramid(pyramid, location){
 		var closestFaceIndex;
@@ -828,10 +691,6 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 	}
 
 
-	function removeButtonColor(color){
-
-	}
-
 	function adjustColor(color, value) {
 	    var digits = /(.*?)rgb\((\d+), (\d+), (\d+)\)/.exec(color);
 	    
@@ -883,7 +742,26 @@ function media_model_viewer(fileId, objPaths, mtlPaths){
 		close: function() {
 		}
 	});
-}
+
+	jQuery( '#media-model-addnote-form' ).dialog({
+		autoOpen: false,
+		height: 400,
+		width: 600,
+		modal: true,
+		buttons: {
+			'Load': function() {
+				if(jQuery('#media-model-load-notes-contains').text()!='No extra data')
+					loadNote(savedNotes[jQuery('#media-model-load-notes-index').attr('class')]);
+				jQuery( this ).dialog( 'close' );
+			},
+			Cancel: function() {
+				jQuery( this ).dialog( 'close' );
+			}
+		},
+		close: function() {
+		}
+	});
+
 	function positionDistance(i) {
 		var screenPos = new THREE.Vector3().copy(path.markers[i].mesh.position).add(path.markers[i+1].mesh.position).multiplyScalar(0.5);
 		projector.projectVector( screenPos, camera );
@@ -939,7 +817,7 @@ function rebuildPath(newOrder){
 			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
 			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
 		}
-		path.distance.element.innerHTML = path.distance.value.toFixed(2) + '\n';
+		path.distance.element.innerHTML = path.distance.value.toFixed(2);
 		repositionDistances();
 		path.lineRibbon = newRibbon;
 		path.markers = newMarkers;
@@ -1035,6 +913,15 @@ function media_model_append_saved_note(title, text, cam, markers, noteid){
 		noteid: noteid
 	});
 }
+
+
+function media_model_viewer(fid, oPaths, mPaths){
+	mtlPaths = eval(mPaths);
+	objPaths = eval(oPaths);
+	fileId = fid;
+	init();
+	animate();
+}
 jQuery(document).ready(function(){
 
 	for(var i=0; i<savedNotes.length; i++){
@@ -1087,18 +974,5 @@ jQuery(document).ready(function(){
 		//jQuery('.media-model-saved-notes-submenu').hide();
 		//jQuery('#media-model-saved-notes-selector').attr('class', 'hidden');
 	});
-
-	document.addEventListener('keydown', function (event) {
-		switch(event.keyCode){
-			case 70: 
-				keyInput = 'f';
-				break;
-			case 72: 
-				keyInput = 'h';
-				break;
-			case 192:
-				keyInput = '`';
-				break;
-		}
-	}, false);
 });
+

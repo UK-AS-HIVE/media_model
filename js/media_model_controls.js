@@ -56,7 +56,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 		if ( angle === undefined ) {
 
-			angle = getAutoRotationAngle();
+			angle = getAutoRotationdomAngle();
 
 		}
 
@@ -99,7 +99,6 @@ THREE.MediaModelControls = function ( object, domElement ) {
 		phiDelta += angle;
 
 	};
-
 
 	this.update = function () {
 		if(state == STATE.NONE)
@@ -165,10 +164,10 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	}
 
+	var lastMouseDown = new Date().getTime();
 	function onMouseDown( event ) {
-
+		console.log(event);
 		if ( event.button == 0 && event.altKey ) {
-			//console.log(event.button);
 			event.preventDefault();
 
 			state = STATE.ROTATE;
@@ -177,8 +176,25 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 		} 
 
-		domElement.addEventListener( 'mousemove', onMouseMove, false );
-		domElement.addEventListener( 'mouseup', onMouseUp, false );
+		if( event.which == 1 ){
+			mouse1Down = true;
+			if(markerHandler.object){
+				markerHandler.grabbed = true;
+			}
+			var newMouseDown = new Date().getTime();
+			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
+			if( newMouseDown - lastMouseDown < 250 ){
+				if(markerHandler.object)
+					removePoint(markerHandler.object.name);
+				else {
+					console.log('adding point');
+					addPoint(cursor);
+				}
+			}
+			lastMouseDown =  new Date().getTime();
+		}
+		//domElement.addEventListener( 'mousemove', onMouseMove, false );
+		//domElement.addEventListener( 'mouseup', onMouseUp, false );
 
 	}
 
@@ -199,25 +215,94 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 		}
 
+		// begin code moved from media_model.js
+		if ( !event.altKey && rotating ) {
+				rotating = false;
+				controls.state = -1;
+				controls.center = new THREE.Vector3();
+		}
+		// don't do anything unless we have a model loaded!
+		if( model[0] && !rotating){
+			//var cursorPyrUp = new THREE.Vector3();
+			orientPyramid( cursorPyr, cursor);
+		}
+		if( mouse.x && mouse.y ){
+			var dx = mouse.x - event.offsetX;
+			var dy = mouse.y - event.offsetY;
+			if( event.which == 1 ){
+				if( event.altKey && !rotating ) {
+					rotating = true;
+					controls.center = cursorPyr.position;
+				}
+				else{
+					camera.rotation.x += dy * 0.002;
+					camera.rotation.y += dx * 0.002;
+				}
+			}
+			else if( event.which == 2 ){
+				//var forwardVector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
+				//projector.unprojectVector(forwardVector, camera);
+				//forwardVector.normalize();
+				panCamera(dx, dy);
+			}
+		}
+		// update our known 2d/3d mouse coordinates
+		mouse.x = event.offsetX;
+		mouse.y = event.offsetY;
+		mouse3D.x = ( event.offsetX / windowWidth ) * 2 - 1;
+		mouse3D.y = - ( event.offsetY / windowHeight ) * 2 + 1;
+		// end code moved from media_model.js
+
 	}
 
 	function onMouseUp( event ) {
+		if(markerHandler.grabbed)
+			markerHandler.grabbed = false;
 
 		if ( ! scope.userRotate ) return;
 
-		domElement.removeEventListener( 'mousemove', onMouseMove, false );
-		domElement.removeEventListener( 'mouseup', onMouseUp, false );
+		//domElement.removeEventListener( 'mousemove', onMouseMove, false );
+		//domElement.removeEventListener( 'mouseup', onMouseUp, false );
 
 		state = STATE.NONE;
 
 	}
 
-	function onMouseWheel( event ) {
+	function onMouseWheel( event ){
+		// don't let the window scroll away!
+		event.preventDefault();
+		// we want a direction vector which points inside from the location of the camera
+		var direction = new THREE.Vector3();
+		direction.copy( cursor );
+		// we use model[0] since it seems to contain "most" of the model data
+		direction.sub( camera.position );
+		if((direction.lengthSq() > 100 || event.wheelDelta < 0)
+		 	&& (direction.lengthSq() < 1000000 || event.wheelDelta > 0)) {
+			direction.normalize();
+			direction.multiplyScalar( windowWidth / 100 * event.wheelDelta / ( Math.abs( event.wheelDelta ) ) );
+			camera.position.add(direction);
+		}
+	}
 
+	function onKeyDown( event ){
+		//console.log("ON KEY DOWN!");
+		//console.log(event);
+		switch(event.keyCode){
+			case 70: // 'f'
+				fullscreenToggle();
+				break;
+			case 72: // 'h'
+				jQuery(helpOverlay).toggle();
+				jQuery(helpPrompt).toggle();
+				break;
+		}
 	}
 
 	//this.domElement.addEventListener( 'contextmenu', function ( event ) { event.preventDefault(); }, false );
+	this.domElement.addEventListener( 'mousemove', onMouseMove, false );
 	this.domElement.addEventListener( 'mousedown', onMouseDown, false );
 	this.domElement.addEventListener( 'mousewheel', onMouseWheel, false );
+	this.domElement.addEventListener( 'mouseup', onMouseUp, false );
 	this.domElement.addEventListener( 'DOMMouseScroll', onMouseWheel, false ); // firefox
+	document.addEventListener( 'keydown', onKeyDown, false);
 };

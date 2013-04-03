@@ -144,6 +144,24 @@ function theme_model($variables) {
         noteText = jQuery("#noteText"),
         cam = jQuery("#cam"),
         markers = jQuery("#markers");
+    jQuery( "#media-model-loadnote-form" ).dialog({
+      autoOpen: false,
+      height: 400,
+      width: 600,
+      modal: true,
+      buttons: {
+        "Load": function() {
+          if(jQuery("#media-model-load-notes-contains").text()!="No extra data")
+            loadNote(savedNotes[jQuery("#media-model-load-notes-index").attr("class")]);
+          jQuery( this ).dialog( "close" );
+        },
+        Cancel: function() {
+          jQuery( this ).dialog( "close" );
+        }
+      },
+      close: function() {
+      }
+      });
       jQuery( "#media-model-addnote-form" ).dialog({
         autoOpen: false,
         height: 400,

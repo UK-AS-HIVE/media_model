@@ -37,7 +37,7 @@
     width: 930px;
     height: 600px;
 }
-.media-model-path-control-button {
+.media-model-control-button {
 	opacity: 1;;
  	margin: 0 3px 3px 3px;
 	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
@@ -57,9 +57,10 @@
 	text-decoration:none;
 	text-shadow:1px 1px 0px #ffffff;
 	text-align:center;
+	z-index: 1001;
 
 }
-.media-model-path-control-button:hover {
+.media-model-control-button:hover {
     background-color:#eeeeee;
 	text-shadow:2px 2px 0px #ffffff;
     color:#069cf7;
@@ -218,4 +219,7 @@ a.media-model-saved-notes-selector
     left: 25px;
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
+}
+#media-model-loadnote-form{
+	display:none;
 }

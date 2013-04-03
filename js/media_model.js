@@ -1,7 +1,6 @@
 var objPaths, mtlPaths, fileId, savedNotes = [], qh, parent, wrapper = document.createElement('div');
 wrapper.id = 'media-model-wrapper';
 wrapper.name = 'Media Model Wrapper';
-var keyInput = null;
 
 var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
@@ -78,9 +77,10 @@ var FPSAvg = function(n){
 			var curr = Date.now(), myfps=Math.round(1E3/(curr-last));
 			last = curr;
 			if(Date.now()>last+1E3)
-				returnnull;
+				return null;
 			lastNFrames.push(factor*(myfps));
 			avg += lastNFrames[lastNFrames.length-1];
+			//console.log(avg);
 			if(lastNFrames.length>n) {
 				avg -= lastNFrames.shift();
 				return avg;
@@ -215,8 +215,9 @@ var colors = [
 var colorAvailable = [ true, true, true, true, true, true, true ];
 
 	function init(){
+
 		container = document.getElementById( 'file-'.concat(fileId) );
-		jQuery(container).prepend(wrapper)
+		jQuery(container).prepend(wrapper);
 		defaultWindow = {width: jQuery(wrapper).width(), height: jQuery(wrapper).height() };
 		resetWindow(defaultWindow.width, defaultWindow.height);
 
@@ -245,35 +246,22 @@ var colorAvailable = [ true, true, true, true, true, true, true ];
 		//pathControls.appendChild(path.distance.element);
 
 		URLButton = document.createElement( 'button' );
-		URLButton.className = 'media-model-path-control-button';
+		URLButton.className = 'media-model-control-button';
 		URLButton.id = 'media-model-generate-url-button';
 		URLButton.innerHTML = 'Generate URL';
 		pathControls.appendChild(URLButton);
-		jQuery('#media-model-generate-url-button')
-			.click(function () {
-  			window.prompt ('Copy this URL:', generateURL());
-		});
 
 		loadNoteButton = document.createElement( 'button' );
-		loadNoteButton.className = 'media-model-path-control-button';
+		loadNoteButton.className = 'media-model-control-button';
 		loadNoteButton.id = 'media-model-load-note-button';
 		loadNoteButton.innerHTML = 'Load note from server';
 		pathControls.appendChild(loadNoteButton);
-		jQuery( '#media-model-load-note-button' )
-      		.click(function() {
-        	jQuery( '#media-model-loadnote-form' ).dialog( 'open' );
-      	});
 
 		addNoteButton = document.createElement( 'button' );
-		addNoteButton.className = 'media-model-path-control-button';
+		addNoteButton.className = 'media-model-control-button';
 		addNoteButton.id = 'media-model-save-note-button';
 		addNoteButton.innerHTML = 'Save note to server';
 		pathControls.appendChild(addNoteButton);
-		jQuery( '#media-model-save-note-button' )
-      		.click(function() {
-      			console.log('clicked');
-        	jQuery( '#media-model-addnote-form' ).dialog( 'open' );
-      	});
 
 		//addNoteButton = jQuery('.media-model-save-note-button');
 		//addNoteButton.appendTo('#media-model-path-controls');
@@ -395,8 +383,19 @@ var colorAvailable = [ true, true, true, true, true, true, true ];
 				qh.mtlLoad.high.path = mtlPaths.high;
 				qh.objLoad.default.path = objPaths.default;
 				qh.objLoad.low.path = objPaths.low;
-				qh.objLoad.med.path = objPaths.med;
+				//qh.objLoad.med.path = objPaths.med;
 				//qh.objLoad.high.path = objPaths.high;
+				if(fileId=="26"){
+					var result = THREE.ImageUtils.loadTexture('https://media-dev.as.uky.edu/media-dev3/sites/default/files/Chads/Chad217_normaltest_normal.png', {}, function() {
+						console.log('Successfully loaded test normal map material');
+						//while(!model[0]){
+							//waiting for model to load
+						//}
+						model[0].material.normalMap = result;
+						model[0].material.needsUpdate = true;
+						console.log('Swapped for test normal map material');
+					});
+				}
 			});
 			loader.load( objPaths.low ? objPaths.low : objPaths.default, mtlPaths.low ? mtlPaths.low : mtlPaths.default);
 
@@ -404,18 +403,6 @@ var colorAvailable = [ true, true, true, true, true, true, true ];
 		console.log(objPaths.low);
 		console.log('Loading the following mtl: ');
 		console.log(mtlPaths.low);
-
-
-		// markers are pyramids which will point to the location on the surface selected by the user
-		/*
-		point1Marker = new THREE.Mesh( pyramidGeometry, new THREE.MeshLambertMaterial( { color : 0x0000FF } ) );
-		point2Marker = new THREE.Mesh( pyramidGeometry, new THREE.MeshLambertMaterial( { color : 0x0000FF } ) );
-		scene.add( point1Marker );
-		scene.add( point2Marker );
-		// we hide them until points are selected
-		point1Marker.visible = false;
-		point2Marker.visible = false;
-		*/
 
 		// establish another pyramid, to follow the cursor and represent where the markers will appear
 		cursorPyr = new THREE.Mesh( path.markerGeometry, new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) );
@@ -442,10 +429,6 @@ var colorAvailable = [ true, true, true, true, true, true, true ];
 		viewport.addEventListener( 'mouseover', onMouseOver, false);
 		viewport.addEventListener( 'mouseout', onMouseOut, false);
 		viewport.addEventListener( 'keydown', onKeyDown, false);*/
-
-		//viewport.addEventListener( 'touchstart', touchStart, false);
-		//viewport.addEventListener( 'touchmove', touchMove, false);
-		//viewport.addEventListener( 'touchend', touchEnd, false);
 
 		rebuildPath(ul.children);
 
@@ -482,10 +465,18 @@ var colorAvailable = [ true, true, true, true, true, true, true ];
 		requestAnimationFrame( animate );
 		render();
 	}
-	var fs = false
+	var fs = false;
 	var fullscreenToggle = function() {
 		if(fs=!fs) {
-			jQuery(viewport).detach().prependTo('#page-wrapper');
+			jQuery(viewport).detach().prependTo('body');
+			jQuery(viewport).css({
+				top: 0,
+				left: 0,
+				height: '100%',
+				width: '100%',
+				overflow: 'hidden'
+			});
+			jQuery('#page-wrapper').hide();
 			resetWindow(window.innerWidth, window.innerHeight);
 	    	camera.aspect = windowWidth/ windowHeight;
 	    	camera.updateProjectionMatrix();
@@ -493,6 +484,14 @@ var colorAvailable = [ true, true, true, true, true, true, true ];
 		}
 		else {
 			jQuery(viewport).detach().prependTo(wrapper);
+			jQuery(viewport).css({
+				top: '',
+				left: '',
+				height: '',
+				width: '',
+				overflow: 'auto'
+			});
+			jQuery('#page-wrapper').show();
 			resetWindow(defaultWindow.width, defaultWindow.height);
 	    	camera.aspect = windowWidth/ windowHeight;
 	    	camera.updateProjectionMatrix();
@@ -511,21 +510,6 @@ var colorAvailable = [ true, true, true, true, true, true, true ];
 		}
 	}
 	function render() {
-		// displays all vertex normals from origin to direction
-		/*
-		if(model[0] && !normals){
-		normals = [];
-		if(model[0])
-			for(var i=0; i<model[0].geometry.faces.length; i++){
-				var line = new THREE.Line(new THREE.Geometry(), new THREE.MeshBasicMaterial({color: 0x00ff00}));
-				line.geometry.vertices.push(new THREE.Vector3().copy(model[0].geometry.faces[i].centroid));
-				line.geometry.vertices.push(new THREE.Vector3().copy(model[0].geometry.faces[i].centroid).add(new THREE.Vector3().copy(model[0].geometry.faces[i].normal).multiplyScalar(5)));
-				normals.push(line);
-				scene.add(line);
-			}
-		}
-		*/
-
 		//console.log(scene.children);
 		// check for cursor going over model
 		if ( model.length > 0 ){
@@ -724,43 +708,7 @@ var colorAvailable = [ true, true, true, true, true, true, true ];
 		}
 	}
 
-	jQuery( '#media-model-loadnote-form' ).dialog({
-		autoOpen: false,
-		height: 400,
-		width: 600,
-		modal: true,
-		buttons: {
-			'Load': function() {
-				if(jQuery('#media-model-load-notes-contains').text()!='No extra data')
-					loadNote(savedNotes[jQuery('#media-model-load-notes-index').attr('class')]);
-				jQuery( this ).dialog( 'close' );
-			},
-			Cancel: function() {
-				jQuery( this ).dialog( 'close' );
-			}
-		},
-		close: function() {
-		}
-	});
 
-	jQuery( '#media-model-addnote-form' ).dialog({
-		autoOpen: false,
-		height: 400,
-		width: 600,
-		modal: true,
-		buttons: {
-			'Load': function() {
-				if(jQuery('#media-model-load-notes-contains').text()!='No extra data')
-					loadNote(savedNotes[jQuery('#media-model-load-notes-index').attr('class')]);
-				jQuery( this ).dialog( 'close' );
-			},
-			Cancel: function() {
-				jQuery( this ).dialog( 'close' );
-			}
-		},
-		close: function() {
-		}
-	});
 
 	function positionDistance(i) {
 		var screenPos = new THREE.Vector3().copy(path.markers[i].mesh.position).add(path.markers[i+1].mesh.position).multiplyScalar(0.5);
@@ -969,10 +917,14 @@ jQuery(document).ready(function(){
 		return false
 	});
 
-	//Document Click
-	jQuery(document).mouseup(function() {
-		//jQuery('.media-model-saved-notes-submenu').hide();
-		//jQuery('#media-model-saved-notes-selector').attr('class', 'hidden');
+
+/*
+	jQuery('.media-model-control-button').bind('mouseout', function(){
+	  jQuery(viewport).trigger('mouseout');
 	});
+	jQuery('.media-model-control-button').bind('mouseout', function(){
+	  jQuery(viewport).trigger('mouseout');
+	});*/
+	//Document Click
 });
 

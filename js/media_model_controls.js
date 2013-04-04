@@ -190,14 +190,14 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 		if( event.which == 1 ){
 			mouse1Down = true;
-			if(markerHandler.object){
-				markerHandler.grabbed = true;
+			if(pinHandler.object){
+				pinHandler.grabbed = true;
 			}
 			var newMouseDown = new Date().getTime();
 			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
 			if( newMouseDown - lastMouseDown < 250 ){
-				if(markerHandler.object)
-					removePoint(markerHandler.object.name);
+				if(pinHandler.object)
+					removePoint(pinHandler.object.name);
 				else {
 					console.log('adding point');
 					addPoint(cursor);
@@ -232,7 +232,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 			rotateStart.copy( rotateEnd );
 			rotating = true;
-			this.center = cursorPyr.position;
+			this.center = cursorPin.position;
 			return;
 		}
 
@@ -243,6 +243,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 				this.center = new THREE.Vector3();
 		}
 		if( mouse.x && mouse.y ){
+			//document.body.style.cursor = "none";
 			var dx = mouse.x - event.offsetX + fix.x;
 			var dy = mouse.y - event.offsetY + fix.y;
 			if( event.which == 1 ){
@@ -257,11 +258,13 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			}
 
 			// don't do anything unless we have a model loaded!
-			if( model[0] && !rotating){
-				//var cursorPyrUp = new THREE.Vector3();
-				orientPyramid( cursorPyr, cursor);
+			if( model && !rotating){
+				//var cursorPinUp = new THREE.Vector3();
+				orientPin( cursorPin, cursor);
 			}
 		}
+		else
+			document.body.style.cursor = "";
 		// update our known 2d/3d mouse coordinates
 		mouse.x = event.offsetX + fix.x;
 		mouse.y = event.offsetY + fix.y;
@@ -272,8 +275,8 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	}
 
 	function onMouseUp( event ) {
-		if(markerHandler.grabbed)
-			markerHandler.grabbed = false;
+		if(pinHandler.grabbed)
+			pinHandler.grabbed = false;
 
 		if ( ! scope.userRotate ) return;
 

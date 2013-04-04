@@ -138,60 +138,6 @@ function theme_model($variables) {
   $objPaths = media_model_get_objs($variables['element']['#file']->filename, $variables['element']['#file']->uri);
 
   drupal_add_library('system', 'ui.dialog');
-  drupal_add_js('
-    jQuery(document).ready(function(){
-      var noteTitle = jQuery("#noteTitle"),
-        noteText = jQuery("#noteText"),
-        cam = jQuery("#cam"),
-        markers = jQuery("#markers");
-    jQuery( "#media-model-loadnote-form" ).dialog({
-      autoOpen: false,
-      height: 400,
-      width: 600,
-      modal: true,
-      buttons: {
-        "Load": function() {
-          if(jQuery("#media-model-load-notes-contains").text()!="No extra data")
-            loadNote(savedNotes[jQuery("#media-model-load-notes-index").attr("class")]);
-          jQuery( this ).dialog( "close" );
-        },
-        Cancel: function() {
-          jQuery( this ).dialog( "close" );
-        }
-      },
-      close: function() {
-      }
-      });
-      jQuery( "#media-model-addnote-form" ).dialog({
-        autoOpen: false,
-        height: 400,
-        width: 600,
-        modal: true,
-        buttons: {
-          "Add note": function() {
-              //allFields.removeClass( "ui-state-error" );
-              saveNote({
-                title: noteTitle.val(),
-                text: noteText.val(),
-                cam: cam.is(":checked"),
-                markers: markers.is(":checked")
-              });
-              noteTitle.val("");
-              noteText.val("");
-              //cam.prop("checked", false);
-              //markers.prop("checked", false);
-              jQuery( this ).dialog( "close" );
-          },
-          Cancel: function() {
-            jQuery( this ).dialog( "close" );
-          }
-        },
-        close: function() {
-          //allFields.val( "" ).removeClass( "ui-state-error" );
-        }
-      });
-    })
-  ', 'inline');
   $output = '
   <div id="media-model-addnote-form" title="Create new note">
   <form>
@@ -258,16 +204,12 @@ or to remove markers from the path!
   //drupal_add_js(libraries_get_path('jquery') . '/js/jquery-ui-1.10.1.custom.js');
   drupal_add_css($mediaPath . '/media_model.css');
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
-  //drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/MTLLoader.js', 'file');
-  //drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJMTLLoader.js', 'file');
-  //drupal_add_js(libraries_get_path('threejs') . '/examples/js/loaders/OBJLoader.js', 'file');
-  //drupal_add_js(libraries_get_path('threejs') . '/examples/js/libs/stats.min.js', 'file');
-  drupal_add_js($mediaPath . '/js/libs/stats.min.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/MTLLoader.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/OBJMTLLoader.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/OBJLoader.js', 'file');
-  drupal_add_js($mediaPath . '/js/media_model.js', 'file');
+  drupal_add_js($mediaPath . '/js/media_model_path.js', 'file');
   drupal_add_js($mediaPath . '/js/media_model_controls.js', 'file');
+  drupal_add_js($mediaPath . '/js/media_model.js', 'file');
 
   drupal_add_js('
    var currentURL = "";

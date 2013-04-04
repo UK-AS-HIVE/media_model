@@ -9,45 +9,31 @@ if(pValues[pValues.length-1]=='')
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
 var camera, controls, helpOverlay, helpPrompt, lastDownTarget;
 var defaultWindow = {width: 800, height: 600};
-var rotRadius = 100, windowWidth, windowHeight, windowHalfX, windowHalfY;
-var pathControls, markerRoot = new THREE.Object3D(), URLButton, addNoteButton,
-		path = {
-		markers: [],
-		colorID: [],
-		ui: [],
-		distances: [],
-		distance: {
-			element: document.createElement( 'div' ),
-			value: 0,
-		},
-		 markerGeometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ),
-		 markerMaterial: new THREE.MeshPhongMaterial( { color : 0x0000FF , wireframe: true} ),
-		 //lineMaterial: new THREE.MeshBasicMaterial( { color: 0x00FF00 } )
-		 lineRibbon: new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, vertexColors: true } ))
-		};
+var windowWidth, windowHeight, windowHalfX, windowHalfY;
+var pathControls, pinRoot = new THREE.Object3D(), URLButton, saveNoteButton, loadNoteButton,
+		path;
 
-function resetWindow(w, h){
-	windowWidth = w;
-	windowHeight = h;
-	windowHalfX = windowWidth / 2;
-	windowHalfY = windowHeight / 2;
-}
-var MarkerHandler = function(){
-	var object, up, domObject, grabbed, lastClick;
+
+var pin = {geometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ), material: new THREE.MeshPhongMaterial( { color : new THREE.Color(0xfffff), wireframe: true} )
+};
+
+var PinHandler = function(){
+	var object, path, index, grabbed, lastClick;
 	return{				
-		setObject:function(selectedObject){
+		setObject:function(path, index){
 			//selectedObject.scale.set(1.6, 1.6, 1.6);
-			this.object = selectedObject;
-			this.up = rotateVectorForObject(new THREE.Vector3(0,1,0), this.object.matrixWorld);
+			this.path = path;
+			this.index = index
+			this.object = path[index];
 			//this.object.scale.set(1.6, 1.6, 1.6);
-			domObject = document.getElementById(this.object.name);
+			//domObject = document.getElementById(this.object.name);
 			return null;
 		},
 		update:function(){
 			if(this.object)
 				if(this.grabbed){
 					this.object.position.set(cursor.x, cursor.y, cursor.z);
-					rebuildPath(ul.children);
+					this.path.rebuildPath();
 				}
 				else{//console.log("spin");
 					rotateAroundWorldAxis(this.object, this.up, 0.05);
@@ -58,7 +44,7 @@ var MarkerHandler = function(){
 			if(!this.grabbed){
 				if(this.object)
 					this.object.scale.set(1, 1, 1);
-				cursorPyr.visible = true;
+				cursorPin.visible = true;
 				return (this.object = null);
 			}
 			else
@@ -66,7 +52,7 @@ var MarkerHandler = function(){
 		}
 	}
 }
-var markerHandler = new MarkerHandler();
+var pinHandler = new PinHandler();
 
 var mouseDown = 0;
 
@@ -89,6 +75,7 @@ var FPSAvg = function(n){
 		}
 	};
 };
+
 var QUALITY = [
 	{value: 0, name: 'default'},
 	{value: 1, name: 'low'}, 
@@ -149,9 +136,9 @@ var QualityHandler = function(modObjs, modMtls){
 							object[0].geometry.computeBoundingBox();
 							console.log('Bounding sphere radius of the geometry is ' + object[0].geometry.boundingSphere.radius);
 						}
-						object[0].material = model[0].material;
+						object[0].material = model.material;
 						scene.add(object[0]);
-						model[0] = object[0];
+						model = object[0];
 						console.log('Swapped for ' + objLoad.next().name + ' quality object');
 						objLoad.loading = false;
 						objLoad.quality = QUALITY[objLoad.quality.value+1];
@@ -164,8 +151,8 @@ var QualityHandler = function(modObjs, modMtls){
 					mtlLoad.loading = true;
 					var result = THREE.ImageUtils.loadTexture(mtlLoad.next().path.replace('.obj.mtl', '.jpg'), {}, function() {
 						console.log('Successfully loaded ' + objLoad.next().name + ' quality material');
-						model[0].material.map = result;
-						model[0].material.needsUpdate = true;
+						model.material.map = result;
+						model.material.needsUpdate = true;
 						console.log('Swapped for ' + mtlLoad.next().name + ' quality material');
 						mtlLoad.loading = false;
 						mtlLoad.quality = QUALITY[mtlLoad.quality.value+1];
@@ -183,7 +170,7 @@ var QualityHandler = function(modObjs, modMtls){
 var viewport, ul, distancesLayer;
 
 //path.lineRibbon.geometry = path.lineGeometry;
-path.markerGeometry.computeBoundingSphere();
+
 
 var camComponents = {
  	up: new THREE.Vector3(),
@@ -202,7 +189,6 @@ var mouse = { x: 0, y: 0 }, INTERSECTED, mouse3D = { x: 0, y: 0, z: 1 };
 var model = [];
 var rotating = false;
 
-
 var colors = [
 	0xd10000,
 	0xff6622,
@@ -212,517 +198,288 @@ var colors = [
 	0x220066,
 	0x330044
 ];
+
 var colorAvailable = [ true, true, true, true, true, true, true ];
 
-	function init(){
+function init(){
+	path = new THREE.MediaModelPath(colorChooser());
+	container = document.getElementById( 'file-'.concat(fileId) );
+	jQuery(container).prepend(wrapper);
+	defaultWindow = {width: jQuery(wrapper).width(), height: jQuery(wrapper).height() };
+	resetWindow(defaultWindow.width, defaultWindow.height);
 
-		container = document.getElementById( 'file-'.concat(fileId) );
-		jQuery(container).prepend(wrapper);
-		defaultWindow = {width: jQuery(wrapper).width(), height: jQuery(wrapper).height() };
-		resetWindow(defaultWindow.width, defaultWindow.height);
+	helpOverlay = document.getElementsByClassName('media-model-help-overlay')[0];
+	helpPrompt = document.getElementsByClassName('media-model-help-prompt')[0];
 
-		helpOverlay = document.getElementsByClassName('media-model-help-overlay')[0];
-		helpPrompt = document.getElementsByClassName('media-model-help-prompt')[0];
-		// place our div inside of the parent file-nameed div
-		viewport = document.createElement( 'div' );
-		viewport.id = 'media-model-viewport';
-		viewport.name = 'Media Model Viewport';
-		viewport.appendChild( helpOverlay );
-		jQuery(helpOverlay).hide();
-		viewport.appendChild( helpPrompt );
-		
-		wrapper.appendChild( viewport );
+	viewport = document.createElement( 'div' );
+	viewport.id = 'media-model-viewport';
+	viewport.name = 'Media Model Viewport';
+	jQuery(helpOverlay).hide();
 
-		pathControls = document.createElement( 'div' );
-		pathControls.id = 'media-model-path-controls';
+	pathControls = document.createElement( 'div' );
+	pathControls.id = 'media-model-path-controls';
 
-		var pathDistanceNode = document.createElement('span');
-		pathDistanceNode.innerHTML = 'Path distance: ';
-		pathDistanceNode.className = 'media-model-path-control-text';
-		//pathControls.appendChild(pathDistanceNode);
+	URLButton = document.createElement( 'button' );
+	URLButton.className = 'media-model-control-button';
+	URLButton.id = 'media-model-url-button';
+	URLButton.innerHTML = 'Generate URL';
+	pathControls.appendChild(URLButton);
 
-		path.distance.element.innerHTML = '0';
-		path.distance.element.id = 'media-model-path-distance';
-		//pathControls.appendChild(path.distance.element);
+	loadNoteButton = document.createElement( 'button' );
+	loadNoteButton.className = 'media-model-control-button';
+	loadNoteButton.id = 'media-model-load-note-button';
+	loadNoteButton.innerHTML = 'Load note from server';
+	pathControls.appendChild(loadNoteButton);
 
-		URLButton = document.createElement( 'button' );
-		URLButton.className = 'media-model-control-button';
-		URLButton.id = 'media-model-generate-url-button';
-		URLButton.innerHTML = 'Generate URL';
-		pathControls.appendChild(URLButton);
+	saveNoteButton = document.createElement( 'button' );
+	saveNoteButton.className = 'media-model-control-button';
+	saveNoteButton.id = 'media-model-save-note-button';
+	saveNoteButton.innerHTML = 'Save note to server';
+	pathControls.appendChild(saveNoteButton);
 
-		loadNoteButton = document.createElement( 'button' );
-		loadNoteButton.className = 'media-model-control-button';
-		loadNoteButton.id = 'media-model-load-note-button';
-		loadNoteButton.innerHTML = 'Load note from server';
-		pathControls.appendChild(loadNoteButton);
+	viewport.appendChild( helpOverlay );
+	viewport.appendChild( helpPrompt );
+	wrapper.appendChild( viewport );
+	viewport.appendChild( pathControls );
 
-		addNoteButton = document.createElement( 'button' );
-		addNoteButton.className = 'media-model-control-button';
-		addNoteButton.id = 'media-model-save-note-button';
-		addNoteButton.innerHTML = 'Save note to server';
-		pathControls.appendChild(addNoteButton);
+	// create scene and establish lighting
+	scene = new THREE.Scene();
+	scene.name = 'scene';
 
-		//addNoteButton = jQuery('.media-model-save-note-button');
-		//addNoteButton.appendTo('#media-model-path-controls');
-		//document.removeChild(addNoteButton);
-		//addNoteButton.addClass('media-model-path-control-button');
-		//addNoteButton.html('Save note to server');
-		viewport.appendChild( pathControls );
+	// create camera and position it in scene
+	camera = new THREE.PerspectiveCamera( 45, windowWidth / windowHeight, 1, 2000 );
+	camera.position.z = 100;
+	scene.add( camera );
 
-		var markerListNode = document.createElement('span');
-		markerListNode.innerHTML = 'Marker list: <br>';
-		markerListNode.className = 'media-model-path-control-text';
-		pathControls.appendChild(markerListNode);
-		markerListNode.style.visibility = 'collapse';
+	controls = new THREE.MediaModelControls( camera, viewport );
+	controls.addEventListener( 'change', render, false);	
 
-		ul = document.createElement( 'ul' );
-		ul.id = 'sortable';
-		markerListNode.appendChild(ul);
-		jQuery(function(){
-			jQuery( '#sortable' ).sortable({
-				update: function(event,ui){
-					rebuildPath(ui.item.context.parentNode.children);
-				},
-				out: function(event,ui){
-					ui.item.context.style.opacity = 0.4;
-				},
-				over: function(event,ui){
-					ui.item.context.style.opacity = '';
-				},
-				stop: function(event,ui){
-					ui.item.context.style.opacity = '';
-				}
-			});
-			jQuery( '#sortable' ).mouseup(function(event){
-				console.log(event);
-				if(event.target.style.opacity == 0.4){
-					removePoint(event.target.id);
-				}
-			});
-			jQuery( '#sortable' ).disableSelection();
+	// one ambient light of darkish color
+	var ambient = new THREE.AmbientLight( 0x130d00 );
+	scene.add( ambient );
+
+	// one directional light which will follow behind our camera to highlight what we view
+	dirLight.position.set( 0, 0, 1 ).normalize();
+	scene.add( dirLight );
+
+	projector = new THREE.Projector();
+	var loader = new THREE.OBJMTLLoader();
+		loader.addEventListener( 'load', function ( event ) {
+			var tmp = event.content;
+			console.log(tmp);
+			// because sometimes the .obj seems to contain multiple models
+			// TODO: combine all models which are loaded in 
+			for( var i = 0; i<tmp.children.length; i++ ){
+				model.push( tmp.children[i] );
+				model[i].name = 'model';
+				// we enable double sided materials so we have a back
+        		model[i].material.side = THREE.DoubleSide;
+
+				console.log('Successfully loaded model portion ' + i + ', with ' + model[i].geometry.vertices.length +' vertices and ' + model[i].geometry.faces.length + ' faces.');
+				model[i].geometry.computeBoundingSphere();
+				model[i].geometry.computeBoundingBox();
+				console.log('Bounding sphere radius of the geometry is ' + model[i].geometry.boundingSphere.radius);
+
+				avgPos = new THREE.Vector3()
+					.copy(model[i].geometry.boundingBox.min)
+					.add(model[i].geometry.boundingBox.max)
+					.multiplyScalar(0.5)
+					.negate();
+				console.log('Center point (of bounding box) is away from the origin by ' + avgPos.x + ', ' + avgPos.y + ', ' + avgPos.z);
+
+				//this is to try to move the center to the right place
+				model[i].geometry.applyMatrix(new THREE.Matrix4().makeTranslation(avgPos.x, avgPos.y, avgPos.z));
+
+				//model[i].translate(avgPos.length(), avgPos.negate());
+				scene.add(model[i]);
+
+				var ray = new THREE.Raycaster(camera.position, new THREE.Vector3(0,0,-1));
+				if(ray.intersectObjects( model ).length==0)
+					model[i].applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
+
+
+			}
+			model = model[0];
+			cursor = new THREE.Vector3( model.position.x, model.position.y, model.position.y );
+			if(pValues.length > 0)
+				loadURLdata();
+	
+			
+			qh = new QualityHandler(objPaths.low, mtlPaths.low);
+			qh.mtlLoad.default.path = mtlPaths.default;
+			qh.mtlLoad.low.path = mtlPaths.low;
+			qh.mtlLoad.med.path = mtlPaths.med;
+			qh.mtlLoad.high.path = mtlPaths.high;
+			qh.objLoad.default.path = objPaths.default;
+			qh.objLoad.low.path = objPaths.low;
+			//qh.objLoad.med.path = objPaths.med;
+			//qh.objLoad.high.path = objPaths.high;
+			if(fileId=="26"){
+				var result = THREE.ImageUtils.loadTexture('https://media-dev.as.uky.edu/media-dev3/sites/default/files/Chads/Chad217_normaltest_normal.png', {}, function() {
+					console.log('Successfully loaded test normal map material');
+					//while(!model){
+						//waiting for model to load
+					//}
+					model.material.normalMap = result;
+					model.material.needsUpdate = true;
+					console.log('Swapped for test normal map material');
+				});
+			}
 		});
+		loader.load( objPaths.low ? objPaths.low : objPaths.default, mtlPaths.low ? mtlPaths.low : mtlPaths.default);
 
-		// create scene and establish lighting
-		scene = new THREE.Scene();
-		scene.name = 'scene';
-		scene.add(path.lineRibbon);
-		scene.add(markerRoot);
+	console.log('Loading the following obj: ');
+	console.log(objPaths.low);
+	console.log('Loading the following mtl: ');
+	console.log(mtlPaths.low);
 
-		// create camera and position it in scene
-		camera = new THREE.PerspectiveCamera( 45, windowWidth / windowHeight, 1, 2000 );
-		camera.position.z = rotRadius;
-		scene.add( camera );
+	// establish another pin, to follow the cursor and represent where the pins will appear
+	cursorPin = new THREE.Mesh( pin.geometry, new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) );
+	scene.add( cursorPin );
+			// a small positional light that will hug our cursor and approach the model
+	cursorPin.add( cursorPLight );
+	cursorPLight.position.y = -20;
 
-		controls = new THREE.MediaModelControls( camera, viewport );
-		controls.addEventListener( 'change', render, false);	
+	// establish our renderer
+	renderer = new THREE.WebGLRenderer();
+	renderer.setSize( windowWidth, windowHeight );
+	renderer.setClearColorHex( 0x8e8272, 1 );
 
-		// one ambient light of darkish color
-		var ambient = new THREE.AmbientLight( 0x130d00 );
-		scene.add( ambient );
+	distancesLayer = document.createElement( 'div' );
+	distancesLayer.id = 'distances-layer';
+	viewport.appendChild( distancesLayer );
 
-		// one directional light which will follow behind our camera to highlight what we view
-		dirLight.position.set( 0, 0, 1 ).normalize();
-		scene.add( dirLight );
+	viewport.appendChild( renderer.domElement );
+	/*viewport.addEventListener( 'mousemove', onMouseMove, false );
+	viewport.addEventListener( 'mousedown', onMouseDown, false );
+	viewport.addEventListener( 'mouseup', onMouseUp, false );
+	viewport.addEventListener( 'DOMMouseScroll', onMouseWheel, false );
+	viewport.addEventListener( 'mousewheel', onMouseWheel, false );
+	viewport.addEventListener( 'mouseover', onMouseOver, false);
+	viewport.addEventListener( 'mouseout', onMouseOut, false);
+	viewport.addEventListener( 'keydown', onKeyDown, false);*/
 
-		projector = new THREE.Projector();
-		var loader = new THREE.OBJMTLLoader();
-			loader.addEventListener( 'load', function ( event ) {
-				var tmp = event.content;
-				console.log(tmp);
-				// because sometimes the .obj seems to contain multiple models
-				// TODO: combine all models which are loaded in 
-				for( var i = 0; i<tmp.children.length; i++ ){
-					model.push( tmp.children[i] );
-					model[i].name = 'model';
-					// we enable flipSided and doubleSided to try to render the back of our model
-					//model[i].flipSided = true;
-					//model[i].doubleSided = true;
-	        		model[i].material.side = THREE.DoubleSide;
+	path.rebuildPath();
 
-					console.log('Successfully loaded model portion ' + i + ', with ' + model[i].geometry.vertices.length +' vertices and ' + model[i].geometry.faces.length + ' faces.');
-					model[i].geometry.computeBoundingSphere();
-					model[i].geometry.computeBoundingBox();
-					console.log('Bounding sphere radius of the geometry is ' + model[i].geometry.boundingSphere.radius);
-					//model[i].material = new THREE.MeshLambertMaterial( { color : 0xFF0000 } );
-					/*
-					avgPos = new THREE.Vector3();
-					for(var j = 0; j<model[i].geometry.faces.length; j++){
-						avgPos.addSelf(model[i].geometry.faces[j].centroid);
-					}
-					avgPos.multiplyScalar(1.0/model[i].geometry.faces.length);
-					*/
-					avgPos = new THREE.Vector3()
-						.copy(model[i].geometry.boundingBox.min)
-						.add(model[i].geometry.boundingBox.max)
-						.multiplyScalar(0.5)
-						.negate();
-					console.log('Center point (of bounding box) is away from the origin by ' + avgPos.x + ', ' + avgPos.y + ', ' + avgPos.z);
+	var modalMessage = document.createElement( 'div' );
+	modalMessage.id = 'modal-message';
+	modalMessage.innerHTML = '&nbsp'
+	container.appendChild(modalMessage);
+} // end init
 
-					//this is to try to move the center to the right place
-					model[i].geometry.applyMatrix(new THREE.Matrix4().makeTranslation(avgPos.x, avgPos.y, avgPos.z));
+function animate() {
+	controls.update();
+	requestAnimationFrame( animate );
+	render();
+}
+function render() {
+	//console.log(scene.children);
+	// check for cursor going over model
+	if ( model.length > 0 ){
+		repositionDistances();
+		var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
+		projector.unprojectVector( vector, camera );
+		var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
+		var modelIntersects = ray.intersectObjects(model);
+		var pinIntersects = ray.intersectObject(pinRoot, true);
+		//console.log(intersects);
+		if(modelIntersects &&  modelIntersects[0] &&  modelIntersects[0].point )
+			cursor.copy( modelIntersects[0].point );
 
-					//model[i].translate(avgPos.length(), avgPos.negate());
-					scene.add(model[i]);
-
-					var ray = new THREE.Raycaster(camera.position, new THREE.Vector3(0,0,-1));
-					if(ray.intersectObjects( model ).length==0)
-						model[i].applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
-
-
-				}
-				cursor = new THREE.Vector3( model[0].position.x, model[0].position.y, model[0].position.y );
-				if(pValues.length > 0)
-					loadURLdata();
-		
-				
-				qh = new QualityHandler(objPaths.low, mtlPaths.low);
-				qh.mtlLoad.default.path = mtlPaths.default;
-				qh.mtlLoad.low.path = mtlPaths.low;
-				qh.mtlLoad.med.path = mtlPaths.med;
-				qh.mtlLoad.high.path = mtlPaths.high;
-				qh.objLoad.default.path = objPaths.default;
-				qh.objLoad.low.path = objPaths.low;
-				//qh.objLoad.med.path = objPaths.med;
-				//qh.objLoad.high.path = objPaths.high;
-				if(fileId=="26"){
-					var result = THREE.ImageUtils.loadTexture('https://media-dev.as.uky.edu/media-dev3/sites/default/files/Chads/Chad217_normaltest_normal.png', {}, function() {
-						console.log('Successfully loaded test normal map material');
-						//while(!model[0]){
-							//waiting for model to load
-						//}
-						model[0].material.normalMap = result;
-						model[0].material.needsUpdate = true;
-						console.log('Swapped for test normal map material');
-					});
-				}
-			});
-			loader.load( objPaths.low ? objPaths.low : objPaths.default, mtlPaths.low ? mtlPaths.low : mtlPaths.default);
-
-		console.log('Loading the following obj: ');
-		console.log(objPaths.low);
-		console.log('Loading the following mtl: ');
-		console.log(mtlPaths.low);
-
-		// establish another pyramid, to follow the cursor and represent where the markers will appear
-		cursorPyr = new THREE.Mesh( path.markerGeometry, new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) );
-		scene.add( cursorPyr );
-				// a small positional light that will hug our cursor and approach the model
-		cursorPyr.add( cursorPLight );
-		cursorPLight.position.y = -20;
-
-		// establish our renderer
-		renderer = new THREE.WebGLRenderer();
-		renderer.setSize( windowWidth, windowHeight );
-		renderer.setClearColorHex( 0x8e8272, 1 );
-
-		distancesLayer = document.createElement( 'div' );
-		distancesLayer.id = 'distances-layer';
-		viewport.appendChild( distancesLayer );
-
-		viewport.appendChild( renderer.domElement );
-		/*viewport.addEventListener( 'mousemove', onMouseMove, false );
-		viewport.addEventListener( 'mousedown', onMouseDown, false );
-		viewport.addEventListener( 'mouseup', onMouseUp, false );
-		viewport.addEventListener( 'DOMMouseScroll', onMouseWheel, false );
-		viewport.addEventListener( 'mousewheel', onMouseWheel, false );
-		viewport.addEventListener( 'mouseover', onMouseOver, false);
-		viewport.addEventListener( 'mouseout', onMouseOut, false);
-		viewport.addEventListener( 'keydown', onKeyDown, false);*/
-
-		rebuildPath(ul.children);
-
-		var modalMessage = document.createElement( 'div' );
-		modalMessage.id = 'modal-message';
-		modalMessage.innerHTML = '&nbsp'
-		container.appendChild(modalMessage);
-	} // end init
-
-	function loadURLdata() {
-		// you were reodering this function to take input the same way generate generates
-		// gl 
-		var i, loadedCameraMatrix = new THREE.Matrix4();
-		pValues[0] = pValues[0].substr(pValues[0].indexOf('=')+1);
-		for(i=0; i<pValues.length; i++)
-			if(pValues[i].indexOf('markers=') != -1) {
-				break;
-			}
-			else
-				loadedCameraMatrix.elements[i]=parseFloat(pValues[i]);	
-		camera.matrix.identity();
-		camera.applyMatrix(loadedCameraMatrix);
-		if(pValues[i] !='markers=') {
-			pValues[i] = pValues[i].substr(pValues[i].indexOf('=')+1);
-			while(i<pValues.length) {
-				addPoint(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
-				i+=3;
-			}
+		if(modelIntersects.length > 0
+			&& (pinIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) < pinIntersects[0].point.distanceTo(camera.position))) {
+			pinHandler.clear();
+			highlighted = true;
 		}
-	}
-
-	function animate() {
-		controls.update();
-		requestAnimationFrame( animate );
-		render();
-	}
-	var fs = false;
-	var fullscreenToggle = function() {
-		if(fs=!fs) {
-			jQuery(viewport).detach().prependTo('body');
-			jQuery(viewport).css({
-				top: 0,
-				left: 0,
-				height: '100%',
-				width: '100%',
-				overflow: 'hidden'
-			});
-			jQuery('#page-wrapper').hide();
-			resetWindow(window.innerWidth, window.innerHeight);
-	    	camera.aspect = windowWidth/ windowHeight;
-	    	camera.updateProjectionMatrix();
-			renderer.setSize( windowWidth, windowHeight );
+		else if (pinIntersects.length > 0
+			&& (modelIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) > pinIntersects[0].point.distanceTo(camera.position))) {
+			cursorPin.visible = false;
+			//cursor.copy( pinIntersects[0].object.position);
+			pinHandler.setObject(pinIntersects[0].object);
+			highlighted = true;
 		}
-		else {
-			jQuery(viewport).detach().prependTo(wrapper);
-			jQuery(viewport).css({
-				top: '',
-				left: '',
-				height: '',
-				width: '',
-				overflow: 'auto'
-			});
-			jQuery('#page-wrapper').show();
-			resetWindow(defaultWindow.width, defaultWindow.height);
-	    	camera.aspect = windowWidth/ windowHeight;
-	    	camera.updateProjectionMatrix();
-			renderer.setSize( windowWidth, windowHeight );
-		}
-	}
-	window.addEventListener( 'resize', onWindowResize, false );
-
-	function onWindowResize(){
-		if(fs){
-			windowWidth = window.innerWidth;
-			windowHeight = window.innerHeight;
-	    	camera.aspect = windowWidth/ windowHeight;
-	    	camera.updateProjectionMatrix();
-			renderer.setSize( windowWidth, windowHeight );
-		}
-	}
-	function render() {
-		//console.log(scene.children);
-		// check for cursor going over model
-		if ( model.length > 0 ){
-			repositionDistances();
-			var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
-			projector.unprojectVector( vector, camera );
-			var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
-			var modelIntersects = ray.intersectObjects(model);
-			var markerIntersects = ray.intersectObject(markerRoot, true);
-			//console.log(intersects);
-			if(modelIntersects &&  modelIntersects[0] &&  modelIntersects[0].point )
-				cursor.copy( modelIntersects[0].point );
-
-			if(modelIntersects.length > 0
-				&& (markerIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) < markerIntersects[0].point.distanceTo(camera.position))) {
-				markerHandler.clear();
-				highlighted = true;
-			}
-			else if (markerIntersects.length > 0
-				&& (modelIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) > markerIntersects[0].point.distanceTo(camera.position))) {
-				cursorPyr.visible = false;
-				//cursor.copy( markerIntersects[0].object.position);
-				markerHandler.setObject(markerIntersects[0].object);
-				highlighted = true;
-			}
-			else{
-				highlighted = false;
-				markerHandler.clear();
-			}
-
-		}
-		renderer.render( scene, camera );
-		markerHandler.update();
-		if(qh) qh.update();
-	}
-
-
-	function removePoint( colorID ){
-		for( var i=0; i<ul.children.length; i++) {
-			if(ul.children[i].id==colorID){
-				jQuery('#'+colorID).remove();
-    			jQuery('#'+colorID).sortable('destroy'); //call widget-function destroy
-    			jQuery('.ui-sortable-placeholder').remove();
-				colorAvailable[colors.indexOf(parseInt(colorID, 16))] = true;
-				//delete(markerHandler.object);
-				break;
-			}
-		}
-		console.log(ul.children);
-		console.log('Removed ' + colorID + ' from the set.');
-		rebuildPath(ul.children);
-	}
-
-	function addPoint(location) {
-		var color = colorChooser();
-		console.log("adding new point of ");
-		console.log(color);
-		if(color==false) return;
-		var markerMaterial = new THREE.MeshPhongMaterial();
-		markerMaterial.color = color;
-		path.colorID.push( color.getHexString() );
-		path.markers.push( { 	
-				mesh: new THREE.Mesh(path.markerGeometry, markerMaterial),
-				up: new THREE.Vector3()
-			});
-		var index = path.markers.length-1;
-		markerRoot.add(path.markers[index].mesh);
-		//path.markers[path.markers.length - 1].mesh.position.set(cursor.x, cursor.y, cursor.z);
-		path.markers[index].up = orientPyramid(path.markers[index].mesh, location);
-		path.markers[index].mesh.name = color.getHexString();
-
-		var li = document.createElement( 'li' );
-		li.className = 'marker-button';
-		li.id = color.getHexString();
-		//li.innerHTML = "";
-		li.style.backgroundColor = '#' + color.getHexString();
-		li.onmouseover = function(event){
-			event.target.style.backgroundColor = adjustColor(event.target.style.backgroundColor, 40);
-		};
-		li.onmouseout = function(event){
-			event.target.style.backgroundColor = adjustColor(event.target.style.backgroundColor, -40);
-		};
-
-		li.appendChild(document.createElement('br'));
-		path.ui.push(li);
-		ul.appendChild(li);
-		rebuildPath(ul.children);
-		//scene.add(newLine);
-		//model[0].visible = false;
-	}
-
-
-	jQuery(wrapper).disableSelection();
-	jQuery(viewport).disableSelection();
-	jQuery(pathControls).disableSelection();
-	jQuery(distancesLayer).disableSelection();
-
-	function orientPyramid(pyramid, location){
-		var closestFaceIndex;
-		closestFaceIndex = 0;
-		// iterate over our model's faces to try to locate the nearest centroid
-		for( var i = 1; i < model[0].geometry.faces.length; i++ ){
-			if( location.distanceTo(model[0].geometry.faces[closestFaceIndex].centroid) > location.distanceTo(model[0].geometry.faces[i].centroid) )
-				closestFaceIndex = i;
-		}
-		// move pyramid to our cursor's location
-		// pyramid here is most likely cursorPyr
-		pyramid.position.copy( location );
-		var pyramidUp = new THREE.Vector3();
-		// begin our up vector as a copy of the closest face's normal
-		pyramidUp.copy( model[0].geometry.faces[closestFaceIndex].normal );
-		// we cross the up vector with -1,0,0 so the pyramid points in the direction we want it to (on to the model)
-
-		pyramidUp.multiplyScalar( pyramid.geometry.boundingSphere.radius/2 );
-		// and add it to the pyramid's position
-		//pyramid.position.add( pyramidUp );
-
-		pyramid.lookAt( location );
-		pyramid.rotation.x -= Math.PI/2;
-		return pyramidUp;
-	}
-
-
-	var rotationY = new THREE.Matrix4();
-	var rotationX = new THREE.Matrix4();
-	var translation = new THREE.Matrix4();
-	var translationInverse = new THREE.Matrix4();
-	var matrix = new THREE.Matrix4();
-
-
-	function panCamera(dx, dy) {
-		camComponents.up = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
-		//var upTest = new THREE.Vector3(0,1,0).applyMatrix4(camera.matrixWorld).sub(new THREE.Vector3(0,0,0).applyMatrix4(camera.matrixWorld));
-		//console.log('rotateByEuler gives us ' + camComponents.up.x + ',' + camComponents.up.y + ',' + + camComponents.up.z + ', and new method gives us ' + upTest.x + ',' + upTest.y + ',' + upTest.z);
-
-		camComponents.right = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
-		//cameraSideMotion.cross(cameraUpMotion, forwardVector);
-
-		camComponents.right.multiplyScalar(dx * 0.2);
-		camComponents.up.multiplyScalar(-dy * 0.2);
-
-		camera.position.add(camComponents.up);
-		camera.position.add(camComponents.right);
-	}
-
-
-	function rotateVectorByEuler(vector, x, y, z){
-		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1,0,0), x));
-		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,1,0), y));
-		vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,0,1), z));
-		vector.x *= -1;
-		vector.y *= -1;
-	}
-
-	function colorChooser(color) {
-		for(var i=0; i<colors.length; i++) {
-			if(colorAvailable[i]){
-				colorAvailable[i] = false;
-				return new THREE.Color(colors[i]);
-			}
-		}
-		return false;
-	}
-
-
-	function adjustColor(color, value) {
-	    var digits = /(.*?)rgb\((\d+), (\d+), (\d+)\)/.exec(color);
-	    
-	    var red = Math.min(parseInt(digits[2])+value,255);
-	    var green = Math.min(parseInt(digits[3])+value,255);
-	    var blue = Math.min(parseInt(digits[4])+value,255);
-	    
-	    return 'rgb(' + red + ', ' + green + ', ' + blue + ')';
-	}
-
-	function loadNote(note){
-		var loadedCameraMatrix = new THREE.Matrix4(),
-			cam = note.cam.split(','),
-			markers = note.markers.split(',');
-		if(note.cam != '') {
-			for(var i=0; i<cam.length; i++){
-				loadedCameraMatrix.elements[i]=cam[i];
-			}
-			camera.matrix.identity();
-			camera.applyMatrix(loadedCameraMatrix);
-		}
-		for(var i=0; i<colors.length; i++) {
-			if(!colorAvailable[i])
-				removePoint(colors[i].toString(16));
+		else{
+			highlighted = false;
+			pinHandler.clear();
 		}
 
-		if(note.markers != '') {
-			for(var i=0; i<markers.length; i+=3) {
-				addPoint(new THREE.Vector3(parseFloat(markers[i]), parseFloat(markers[i+1]), parseFloat(markers[i+2])));
-			}
+	}
+	renderer.render( scene, camera );
+	pinHandler.update();
+	if(qh) qh.update();
+}
+
+/*
+function removePoint( colorID ){
+	for( var i=0; i<ul.children.length; i++) {
+		if(ul.children[i].id==colorID){
+			jQuery('#'+colorID).remove();
+			jQuery('#'+colorID).sortable('destroy'); //call widget-function destroy
+			jQuery('.ui-sortable-placeholder').remove();
+			colorAvailable[colors.indexOf(parseInt(colorID, 16))] = true;
+			//delete(pinHandler.object);
+			break;
 		}
 	}
+	console.log(ul.children);
+	console.log('Removed ' + colorID + ' from the set.');
+	rebuildPath(ul.children);
+}
+
+function addPoint(location) {
+	var color = colorChooser();
+	console.log("adding new point of ");
+	console.log(color);
+	if(color==false) return;
+	var pinMaterial = new THREE.MeshPhongMaterial();
+	pinMaterial.color = color;
+	path.colorID.push( color.getHexString() );
+	path.pins.push( { 	
+			mesh: new THREE.Mesh(path.pinGeometry, pinMaterial),
+			up: new THREE.Vector3()
+		});
+	var index = path.pins.length-1;
+	pinRoot.add(path.pins[index].mesh);
+	//path.pins[path.pins.length - 1].mesh.position.set(cursor.x, cursor.y, cursor.z);
+	path.pins[index].up = orientPin(path.pins[index].mesh, location);
+	path.pins[index].mesh.name = color.getHexString();
+
+	var li = document.createElement( 'li' );
+	li.className = 'pin-button';
+	li.id = color.getHexString();
+	//li.innerHTML = "";
+	li.style.backgroundColor = '#' + color.getHexString();
+	li.onmouseover = function(event){
+		event.target.style.backgroundColor = adjustColor(event.target.style.backgroundColor, 40);
+	};
+	li.onmouseout = function(event){
+		event.target.style.backgroundColor = adjustColor(event.target.style.backgroundColor, -40);
+	};
+
+	li.appendChild(document.createElement('br'));
+	path.ui.push(li);
+	ul.appendChild(li);
+	rebuildPath(ul.children);
+	//scene.add(newLine);
+	//model.visible = false;
+}
 
 
 
-	function positionDistance(i) {
-		var screenPos = new THREE.Vector3().copy(path.markers[i].mesh.position).add(path.markers[i+1].mesh.position).multiplyScalar(0.5);
-		projector.projectVector( screenPos, camera );
-		screenPos.x = ( screenPos.x * windowHalfX ) + windowHalfX;
-		screenPos.y = - ( screenPos.y * windowHalfY ) + windowHalfY;
-		if(screenPos.x > 0 && screenPos.x < windowWidth && screenPos.y > 0 && screenPos.y < windowHeight) {
-			path.distances[i].element.style.left = screenPos.x + 'px';
-			path.distances[i].element.style.top = screenPos.y + 'px';
-			path.distances[i].element.style.visibility = 'visible';
-		}
-		else
-			path.distances[i].element.style.visibility = 'collapse';
+function positionDistance(i) {
+	var screenPos = new THREE.Vector3().copy(path.pins[i].mesh.position).add(path.pins[i+1].mesh.position).multiplyScalar(0.5);
+	projector.projectVector( screenPos, camera );
+	screenPos.x = ( screenPos.x * windowHalfX ) + windowHalfX;
+	screenPos.y = - ( screenPos.y * windowHalfY ) + windowHalfY;
+	if(screenPos.x > 0 && screenPos.x < windowWidth && screenPos.y > 0 && screenPos.y < windowHeight) {
+		path.distances[i].element.style.left = screenPos.x + 'px';
+		path.distances[i].element.style.top = screenPos.y + 'px';
+		path.distances[i].element.style.visibility = 'visible';
 	}
+	else
+		path.distances[i].element.style.visibility = 'collapse';
+}
+
 function repositionDistances() {
 	for(var i=0; i<path.distances.length; i++){
 		positionDistance(i);
@@ -731,28 +488,28 @@ function repositionDistances() {
 
 function rebuildPath(newOrder){
 		scene.remove(path.lineRibbon);
-		scene.remove(markerRoot);
-		markerRoot = new THREE.Object3D();
-		scene.add(markerRoot);
+		scene.remove(pinRoot);
+		pinRoot = new THREE.Object3D();
+		scene.add(pinRoot);
 
 		//console.log(viewport.hasChildNodes());
 		while(distancesLayer.hasChildNodes()){
 			distancesLayer.removeChild(distancesLayer.lastChild);
 		}
 		var newRibbon = new THREE.Ribbon(new THREE.Geometry(), path.lineRibbon.material);
-		var newMarkers = [];
+		var newPins = [];
 		var newDistances = [];
 		var newColorID = [];
 		var oldIndex = -1, newIndex = -1;
 		path.distance.value = 0;
 		for(var i=0; i<newOrder.length; i++) {
 			//if(newOrder[i].id == '') continue;
-			newMarkers.push(path.markers[path.colorID.indexOf(newOrder[i].id)]);
+			newPins.push(path.pins[path.colorID.indexOf(newOrder[i].id)]);
 			newColorID.push(newOrder[i].id);
-			markerRoot.add(newMarkers[i].mesh);
+			pinRoot.add(newPins[i].mesh);
 			if(i>0) {
 				newDistances.push({
-					value: newMarkers[i-1].mesh.position.distanceTo(newMarkers[i].mesh.position),
+					value: newPins[i-1].mesh.position.distanceTo(newPins[i].mesh.position),
 					element: document.createElement( 'div' )
 				});
 				distancesLayer.appendChild(newDistances[i-1].element);
@@ -760,15 +517,15 @@ function rebuildPath(newOrder){
 				newDistances[i-1].element.innerHTML = newDistances[i-1].value.toFixed(2);
 				path.distance.value += newDistances[i-1].value;
 			}
-			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position));
-			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newMarkers[i].mesh.position).add(newMarkers[i].up));
+			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newPins[i].mesh.position));
+			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newPins[i].mesh.position).add(newPins[i].up));
 			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
 			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
 		}
 		path.distance.element.innerHTML = path.distance.value.toFixed(2);
 		repositionDistances();
 		path.lineRibbon = newRibbon;
-		path.markers = newMarkers;
+		path.pins = newPins;
 		path.distances = newDistances;
 		path.colorID = newColorID;
 		//console.log('Old index is ' + oldIndex + ' and new index is ' + newIndex);
@@ -777,8 +534,14 @@ function rebuildPath(newOrder){
 
 		currentURL = generateURL();
 	}
+*/
 
+jQuery(wrapper).disableSelection();
+jQuery(viewport).disableSelection();
+jQuery(pathControls).disableSelection();
+jQuery(distancesLayer).disableSelection();
 
+// general motion functionality
 function rotateVectorForObject( vector, matrix){
 	return new THREE.Vector3().copy(vector).applyMatrix4(matrix).sub(new THREE.Vector3(0,0,0).applyMatrix4(matrix));
 }
@@ -792,23 +555,136 @@ function rotateAroundWorldAxis( object, axis, radians ) {
     object.matrix = rotationMatrix;
     object.rotation.setEulerFromRotationMatrix( object.matrix );
 }
+
+function rotateVectorByEuler(vector, x, y, z){
+	vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1,0,0), x));
+	vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,1,0), y));
+	vector.applyMatrix4( new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,0,1), z));
+	vector.x *= -1;
+	vector.y *= -1;
+}
+
+function orientPin(pin, location){
+	var closestFaceIndex;
+	closestFaceIndex = 0;
+
+	// iterate over our model's faces to try to locate the nearest centroid
+	for( var i = 1; i < model.geometry.faces.length; i++ ){
+		if( location.distanceTo(model.geometry.faces[closestFaceIndex].centroid) > location.distanceTo(model.geometry.faces[i].centroid) )
+			closestFaceIndex = i;
+	}
+	// move pin to our cursor's location
+	pin.position.copy( location );
+	var pinUp = new THREE.Vector3();
+	// begin our up vector as a copy of the closest face's normal
+	pinUp.copy( model.geometry.faces[closestFaceIndex].normal );
+	// we cross the up vector with -1,0,0 so the pin points in the direction we want it to (on to the model)
+
+	pinUp.multiplyScalar( pin.geometry.boundingSphere.radius/2 );
+	// and add it to the pin's position
+	pin.position.add( pinUp );
+
+	pin.lookAt( location );
+	pin.rotation.x -= Math.PI/2;
+	return pinUp;
+}
+
+// camera motion functionality
+function panCamera(dx, dy) {
+	camComponents.up = rotateVectorForObject(new THREE.Vector3(0,1,0), camera.matrixWorld);
+	//var upTest = new THREE.Vector3(0,1,0).applyMatrix4(camera.matrixWorld).sub(new THREE.Vector3(0,0,0).applyMatrix4(camera.matrixWorld));
+	//console.log('rotateByEuler gives us ' + camComponents.up.x + ',' + camComponents.up.y + ',' + + camComponents.up.z + ', and new method gives us ' + upTest.x + ',' + upTest.y + ',' + upTest.z);
+
+	camComponents.right = rotateVectorForObject(new THREE.Vector3(1,0,0), camera.matrixWorld);
+	//cameraSideMotion.cross(cameraUpMotion, forwardVector);
+
+	camComponents.right.multiplyScalar(dx * 0.2);
+	camComponents.up.multiplyScalar(-dy * 0.2);
+
+	camera.position.add(camComponents.up);
+	camera.position.add(camComponents.right);
+}
+
+// lil helper functions of the miscellaneous sort
+// we use this to prevent selection of our distance text
+// highlighting text would prevent functionality
+jQuery.fn.extend({ 
+	disableSelection : function() { 
+		return this.each(function() { 
+			this.onselectstart = function() { return false; }; 
+			this.unselectable = 'on'; 
+			jQuery(this).css('user-select', 'none'); 
+			jQuery(this).css('-o-user-select', 'none'); 
+			jQuery(this).css('-moz-user-select', 'none'); 
+			jQuery(this).css('-khtml-user-select', 'none'); 
+			jQuery(this).css('-webkit-user-select', 'none'); 
+		}); 
+	} 
+}); 
+
+function colorChooser() {
+	for(var i=0; i<colors.length; i++) {
+		if(colorAvailable[i]){
+			colorAvailable[i] = false;
+			return new THREE.Color(colors[i]);
+		}
+	}
+	return false;
+}
+
+
+function adjustColor(color, value) {
+    var digits = /(.*?)rgb\((\d+), (\d+), (\d+)\)/.exec(color);
+    
+    var red = Math.min(parseInt(digits[2])+value,255);
+    var green = Math.min(parseInt(digits[3])+value,255);
+    var blue = Math.min(parseInt(digits[4])+value,255);
+    
+    return 'rgb(' + red + ', ' + green + ', ' + blue + ')';
+}
+
+
+
+// general data interfaces
+function loadURLdata() {
+	// you were reodering this function to take input the same way generate generates
+	// gl 
+	var i, loadedCameraMatrix = new THREE.Matrix4();
+	pValues[0] = pValues[0].substr(pValues[0].indexOf('=')+1);
+	for(i=0; i<pValues.length; i++)
+		if(pValues[i].indexOf('pins=') != -1) {
+			break;
+		}
+		else
+			loadedCameraMatrix.elements[i]=parseFloat(pValues[i]);	
+	camera.matrix.identity();
+	camera.applyMatrix(loadedCameraMatrix);
+	if(pValues[i] !='pins=') {
+		pValues[i] = pValues[i].substr(pValues[i].indexOf('=')+1);
+		while(i<pValues.length) {
+			path.addPoint(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
+			i+=3;
+		}
+	}
+}
+
 function generateURL() {
 	var URL = location.origin + location.pathname + '?' + 'cam=';
 	for(var i=0; i<16; i++) {
 		URL += camera.matrixWorld.elements[i].toPrecision(7) + ',';
 	}
-	URL += 'markers=';
-	for(var i=0; i<path.markers.length; i++) {
-		URL += path.markers[i].mesh.position.x.toPrecision(7) + ','
-			+ path.markers[i].mesh.position.y.toPrecision(7) + ',' 
-			+ path.markers[i].mesh.position.z.toPrecision(7) + ',';
+	URL += 'pins=';
+	for(var i=0; i<path.pins.length; i++) {
+		URL += path.pins[i].mesh.position.x.toPrecision(7) + ','
+			+ path.pins[i].mesh.position.y.toPrecision(7) + ',' 
+			+ path.pins[i].mesh.position.z.toPrecision(7) + ',';
 	}
 	return URL;
 }
 
 function saveNote(formResults) {
 	var urlData = generateURL().replace('cam=', '');
-	urlData = urlData.substr(urlData.indexOf('?')+1).split('markers=');
+	urlData = urlData.substr(urlData.indexOf('?')+1).split('pins=');
 
 	fid = location.pathname.substr(location.pathname.lastIndexOf('/')+1);
 
@@ -817,7 +693,7 @@ function saveNote(formResults) {
 			title: formResults.title,
 			text: formResults.text,
 			cam: (formResults.cam ? urlData[0] : null),
-			markers: (formResults.markers ? urlData[1] : null),
+			pins: (formResults.pins ? urlData[1] : null),
 	};
 	console.log(data);
 
@@ -836,28 +712,36 @@ function saveNote(formResults) {
 	});
 }
 
-// we use this to prevent selection of our distance text
-// highlighting text would prevent functionality
-jQuery.fn.extend({ 
-	disableSelection : function() { 
-		return this.each(function() { 
-			this.onselectstart = function() { return false; }; 
-			this.unselectable = 'on'; 
-			jQuery(this).css('user-select', 'none'); 
-			jQuery(this).css('-o-user-select', 'none'); 
-			jQuery(this).css('-moz-user-select', 'none'); 
-			jQuery(this).css('-khtml-user-select', 'none'); 
-			jQuery(this).css('-webkit-user-select', 'none'); 
-		}); 
-	} 
-}); 
+function loadNote(note){
+	var loadedCameraMatrix = new THREE.Matrix4(),
+		cam = note.cam.split(','),
+		pins = note.pins.split(',');
+	if(note.cam != '') {
+		for(var i=0; i<cam.length; i++){
+			loadedCameraMatrix.elements[i]=cam[i];
+		}
+		camera.matrix.identity();
+		camera.applyMatrix(loadedCameraMatrix);
+	}
+	for(var i=0; i<colors.length; i++) {
+		if(!colorAvailable[i])
+			removePoint(colors[i].toString(16));
+	}
 
-function media_model_append_saved_note(title, text, cam, markers, noteid){
+	if(note.pins != '') {
+		for(var i=0; i<pins.length; i+=3) {
+			addPoint(new THREE.Vector3(parseFloat(pins[i]), parseFloat(pins[i+1]), parseFloat(pins[i+2])));
+		}
+	}
+}
+
+// drupal module interface
+function media_model_append_saved_note(title, text, cam, pins, noteid){
 	savedNotes.push({
 		title: title,
 		text: text,
 		cam: cam,
-		markers: markers,
+		pins: pins,
 		noteid: noteid
 	});
 }
@@ -870,6 +754,60 @@ function media_model_viewer(fid, oPaths, mPaths){
 	init();
 	animate();
 }
+
+// window size management
+var fs = false;
+var fullscreenToggle = function() {
+	if(fs=!fs) {
+		jQuery(viewport).detach().prependTo('body');
+		jQuery(viewport).css({
+			top: 0,
+			left: 0,
+			height: '100%',
+			width: '100%',
+			overflow: 'hidden'
+		});
+		jQuery('#page-wrapper').hide();
+		resetWindow(window.innerWidth, window.innerHeight);
+    	camera.aspect = windowWidth/ windowHeight;
+    	camera.updateProjectionMatrix();
+		renderer.setSize( windowWidth, windowHeight );
+	}
+	else {
+		jQuery(viewport).detach().prependTo(wrapper);
+		jQuery(viewport).css({
+			top: '',
+			left: '',
+			height: '',
+			width: '',
+			overflow: 'auto'
+		});
+		jQuery('#page-wrapper').show();
+		resetWindow(defaultWindow.width, defaultWindow.height);
+    	camera.aspect = windowWidth/ windowHeight;
+    	camera.updateProjectionMatrix();
+		renderer.setSize( windowWidth, windowHeight );
+	}
+}
+window.addEventListener( 'resize', onWindowResize, false );
+
+function onWindowResize(){
+	if(fs){
+		windowWidth = window.innerWidth;
+		windowHeight = window.innerHeight;
+    	camera.aspect = windowWidth/ windowHeight;
+    	camera.updateProjectionMatrix();
+		renderer.setSize( windowWidth, windowHeight );
+	}
+}
+
+function resetWindow(w, h){
+	windowWidth = w;
+	windowHeight = h;
+	windowHalfX = windowWidth / 2;
+	windowHalfY = windowHeight / 2;
+}
+
 jQuery(document).ready(function(){
 
 	for(var i=0; i<savedNotes.length; i++){
@@ -884,28 +822,21 @@ jQuery(document).ready(function(){
 			jQuery('#media-model-load-notes-title').text(savedNotes[index].title);
 			jQuery('#media-model-load-notes-note').text(savedNotes[index].text);
 			jQuery('#media-model-load-notes-contains').text('No extra data');
-			if(savedNotes[index].cam != '' && savedNotes[index].markers != '') {
-				jQuery('#media-model-load-notes-contains').text('Contains camera and marker data');
+			if(savedNotes[index].cam != '' && savedNotes[index].pins != '') {
+				jQuery('#media-model-load-notes-contains').text('Contains camera and pin data');
 			}
 			else if (savedNotes[index].cam != '') {
 				jQuery('#media-model-load-notes-contains').text('Contains camera data');
 			}
-			else if (savedNotes[index].markers != '') {
-				jQuery('#media-model-load-notes-contains').text('Contains marker data');
+			else if (savedNotes[index].pins != '') {
+				jQuery('#media-model-load-notes-contains').text('Contains pin data');
 			}
 			jQuery('#media-model-load-notes-index').attr('class', index);
     	});
     //console.log(jQuery('#media-model-saved-notes-root'));
 	}
 	jQuery('#media-model-saved-notes-selector').click(function() {
-	//	if(jQuery(this).attr('class') == 'hidden') {
-			//jQuery('.media-model-saved-notes-submenu').show();
-			//jQuery(this).attr('class', 'visible'); 
-	//	}
-	//	else {
-	//		jQuery('.media-model-saved-notes-submenu').hide();
-	//		jQuery(this).attr('class', 'hidden'); 
-	//	}
+
 	});
 	//Mouse click on sub menu
 	jQuery('.media-model-saved-notes-submenu').mouseup(function() {
@@ -917,7 +848,58 @@ jQuery(document).ready(function(){
 		return false
 	});
 
-
+jQuery(document).ready(function(){
+      var noteTitle = jQuery("#noteTitle"),
+        noteText = jQuery("#noteText"),
+        cam = jQuery("#cam"),
+        pins = jQuery("#pins");
+    jQuery( "#media-model-loadnote-form" ).dialog({
+      autoOpen: false,
+      height: 400,
+      width: 600,
+      modal: true,
+      buttons: {
+        "Load": function() {
+          if(jQuery("#media-model-load-notes-contains").text()!="No extra data")
+            loadNote(savedNotes[jQuery("#media-model-load-notes-index").attr("class")]);
+          jQuery( this ).dialog( "close" );
+        },
+        Cancel: function() {
+          jQuery( this ).dialog( "close" );
+        }
+      },
+      close: function() {
+      }
+      });
+      jQuery( "#media-model-addnote-form" ).dialog({
+        autoOpen: false,
+        height: 400,
+        width: 600,
+        modal: true,
+        buttons: {
+          "Add note": function() {
+              //allFields.removeClass( "ui-state-error" );
+              saveNote({
+                title: noteTitle.val(),
+                text: noteText.val(),
+                cam: cam.is(":checked"),
+                pins: pins.is(":checked")
+              });
+              noteTitle.val("");
+              noteText.val("");
+              //cam.prop("checked", false);
+              //pins.prop("checked", false);
+              jQuery( this ).dialog( "close" );
+          },
+          Cancel: function() {
+            jQuery( this ).dialog( "close" );
+          }
+        },
+        close: function() {
+          //allFields.val( "" ).removeClass( "ui-state-error" );
+        }
+      });
+    })
 /*
 	jQuery('.media-model-control-button').bind('mouseout', function(){
 	  jQuery(viewport).trigger('mouseout');

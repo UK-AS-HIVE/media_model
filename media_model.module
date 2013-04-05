@@ -199,10 +199,10 @@ or to remove markers from the path!
   //return 'GLGE';
   // unique id per instance 
   //drupal_add_library('system', 'ui.draggable');
-  drupal_add_library('system', 'ui.sortable');
+  //drupal_add_library('system', 'ui.sortable');
   //drupal_add_js(libraries_get_path('jquery') . '/js/jquery-1.9.1.js');
   //drupal_add_js(libraries_get_path('jquery') . '/js/jquery-ui-1.10.1.custom.js');
-  drupal_add_css($mediaPath . '/media_model.css');
+  drupal_add_css($mediaPath . '/css/media_model.css');
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/MTLLoader.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/OBJMTLLoader.js', 'file');
@@ -212,7 +212,6 @@ or to remove markers from the path!
   drupal_add_js($mediaPath . '/js/media_model.js', 'file');
 
   drupal_add_js('
-   var currentURL = "";
    function loadModel(){
     media_model_viewer("' . $variables['element']['#file']->fid . '", ' . drupal_json_encode($objPaths) . ', ' . drupal_json_encode($mtlPaths) . ');
    }

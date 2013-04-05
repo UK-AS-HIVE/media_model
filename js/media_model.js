@@ -1,4 +1,13 @@
-var objPaths, mtlPaths, fileId, savedNotes = [], qh, parent, wrapper = document.createElement('div');
+var objPaths, 
+	mtlPaths, 
+	fileId, 
+	savedNotes = [], 
+	qh,
+	ph,
+	paths = [],
+	wrapper = document.createElement('div'),
+	modelLoaded = false;
+
 wrapper.id = 'media-model-wrapper';
 wrapper.name = 'Media Model Wrapper';
 
@@ -7,54 +16,128 @@ if(pValues[pValues.length-1]=='')
 	pValues.pop();
 
 // moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
-var camera, controls, helpOverlay, helpPrompt, lastDownTarget;
+var helpOverlay, helpPrompt, cameraControls, viewport, distancesLayer, guiControls, URLButton, saveNoteButton, loadNoteButton;
+
 var defaultWindow = {width: 800, height: 600};
 var windowWidth, windowHeight, windowHalfX, windowHalfY;
-var pathControls, pinRoot = new THREE.Object3D(), URLButton, saveNoteButton, loadNoteButton,
-		path;
+
+var camComponents = {
+ 	up: new THREE.Vector3(),
+ 	right: new THREE.Vector3(),
+ 	hDegs: 0,
+ 	vDegs: 0,
+ 	radius: 0,
+ 	start: new THREE.Vector3() };
+
+var dirLight = new THREE.DirectionalLight( 0xC8B79D );
+var camera, scene, projector, renderer, highlighted = false;
+
+var model = [];
+var rotating = false;
+
+var colors = [
+	0xd10000,
+	0xff6622,
+	0xffda21,
+	0x33dd00,
+	0x1133cc,
+	0x220066,
+	0x330044
+];
+
+var colorAvailable = [ true, true, true, true, true, true, true ];
 
 
-var pin = {geometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ), material: new THREE.MeshPhongMaterial( { color : new THREE.Color(0xfffff), wireframe: true} )
+// helper objects
+var protopin = {geometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ), material: new THREE.MeshPhongMaterial( { color : new THREE.Color(0xfffff)} )
 };
 
+protopin.geometry.computeBoundingSphere();
+
 var PinHandler = function(){
-	var object, path, index, grabbed, lastClick;
-	return{				
+	var cursor = new THREE.Vector3( model.position.x, model.position.y, model.position.y );
+	var color = new THREE.Color();
+	// establish another pin, to follow the cursor and represent where the pins will appear
+	var pin = new THREE.Mesh( protopin.geometry, new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) );
+	scene.add( pin );
+	// a small positional light that will hug our cursor and approach the model
+	var pl = new THREE.PointLight( 0xffffff, 1, 1000 );
+	pin.add( pl );
+	pl.position.y = -20;
+	var mesh, path, index, grabbed, up;
+	return{
+		cursor: cursor,
+		color: color,
+		pin: pin,
+		path: path,
+		setPath:function(path){
+			this.path = path;
+			this.color = path.color;
+			this.pin.material.color = this.color;
+		},
 		setObject:function(path, index){
 			//selectedObject.scale.set(1.6, 1.6, 1.6);
 			this.path = path;
 			this.index = index
-			this.object = path[index];
-			//this.object.scale.set(1.6, 1.6, 1.6);
+			this.mesh = path.pins[index].mesh;
+			this.up = path.pins[index].up
+			this.color = path.color;
+			//this.mesh.scale.set(1.6, 1.6, 1.6);
 			//domObject = document.getElementById(this.object.name);
-			return null;
 		},
 		update:function(){
-			if(this.object)
+
+			var vector = new THREE.Vector3().copy(cameraControls.mouse3D());
+			projector.unprojectVector( vector, camera );
+			var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
+			var modelIntersects = ray.intersectObject(model);
+			var pinIntersects, i;
+			for(i=0; i<paths.length;i++){
+				paths[i].repositionDistances();
+				pinIntersects = ray.intersectObject(paths[i].pinRoot, true);
+				if(pinIntersects.length>0)
+					break;
+			}
+			//console.log(modelIntersects);
+			//console.log(pinIntersects);
+			//console.log(vector.sub(camera.position).normalize().x+", "+vector.sub(camera.position).normalize().y+", "+vector.sub(camera.position).normalize().z);
+			if(modelIntersects &&  modelIntersects[0] &&  modelIntersects[0].point )
+				this.cursor.copy( modelIntersects[0].point );
+
+			if(modelIntersects.length > 0
+				&& (pinIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) < pinIntersects[0].point.distanceTo(camera.position))) {
+				this.clear();
+				highlighted = true;
+			}
+			else if (pinIntersects.length > 0
+				&& (modelIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) > pinIntersects[0].point.distanceTo(camera.position))) {
+				this.pin.visible = false;
+				this.setObject(paths[i], pinIntersects[0].object.id);
+					//function(e){ jQuery.grep(paths[i].pins, return e.mesh.id === pinIntersects[0].object.id; }));
+				highlighted = true;
+			}
+			else{
+				highlighted = false;
+				ph.clear();
+			}
+
+			if(this.mesh)
 				if(this.grabbed){
-					this.object.position.set(cursor.x, cursor.y, cursor.z);
+					this.mesh.position.set(this.cursor.x, this.cursor.y, this.cursor.z);
 					this.path.rebuildPath();
 				}
 				else{//console.log("spin");
-					rotateAroundWorldAxis(this.object, this.up, 0.05);
+					rotateAroundWorldAxis(this.mesh, this.up, 0.05);
 				}
-			return null;
 		},
 		clear:function(){
 			if(!this.grabbed){
-				if(this.object)
-					this.object.scale.set(1, 1, 1);
-				cursorPin.visible = true;
-				return (this.object = null);
+				this.pin.visible = true;
+				return (this.mesh = null);
 			}
-			else
-				return null;
 		}
 	}
 }
-var pinHandler = new PinHandler();
-
-var mouseDown = 0;
 
 var FPSAvg = function(n){
 	var lastNFrames = [], avg = 0, factor = 1/n, last = Date.now();
@@ -164,45 +247,9 @@ var QualityHandler = function(modObjs, modMtls){
 	};
 
 };
-//document.addEventListener('mousedown', function(){++mouseDown;}, false);
-//document.addEventListener('mouseup', function(){--mouseDown;}, false);
-
-var viewport, ul, distancesLayer;
-
-//path.lineRibbon.geometry = path.lineGeometry;
-
-
-var camComponents = {
- 	up: new THREE.Vector3(),
- 	right: new THREE.Vector3(),
- 	hDegs: 0,
- 	vDegs: 0,
- 	radius: 0,
- 	start: new THREE.Vector3() };
-
-var dirLight = new THREE.DirectionalLight( 0xC8B79D );
-var cursorPLight = new THREE.PointLight( 0xffffff, 1, 1000 );
-var scene, projector, renderer, cursor, highlighted = false;
-
-var mouse = { x: 0, y: 0 }, INTERSECTED, mouse3D = { x: 0, y: 0, z: 1 };
-
-var model = [];
-var rotating = false;
-
-var colors = [
-	0xd10000,
-	0xff6622,
-	0xffda21,
-	0x33dd00,
-	0x1133cc,
-	0x220066,
-	0x330044
-];
-
-var colorAvailable = [ true, true, true, true, true, true, true ];
 
 function init(){
-	path = new THREE.MediaModelPath(colorChooser());
+
 	container = document.getElementById( 'file-'.concat(fileId) );
 	jQuery(container).prepend(wrapper);
 	defaultWindow = {width: jQuery(wrapper).width(), height: jQuery(wrapper).height() };
@@ -216,31 +263,31 @@ function init(){
 	viewport.name = 'Media Model Viewport';
 	jQuery(helpOverlay).hide();
 
-	pathControls = document.createElement( 'div' );
-	pathControls.id = 'media-model-path-controls';
+	guiControls = document.createElement( 'div' );
+	guiControls.id = 'media-model-gui-controls';
 
 	URLButton = document.createElement( 'button' );
 	URLButton.className = 'media-model-control-button';
 	URLButton.id = 'media-model-url-button';
 	URLButton.innerHTML = 'Generate URL';
-	pathControls.appendChild(URLButton);
+	guiControls.appendChild(URLButton);
 
 	loadNoteButton = document.createElement( 'button' );
 	loadNoteButton.className = 'media-model-control-button';
 	loadNoteButton.id = 'media-model-load-note-button';
 	loadNoteButton.innerHTML = 'Load note from server';
-	pathControls.appendChild(loadNoteButton);
+	guiControls.appendChild(loadNoteButton);
 
 	saveNoteButton = document.createElement( 'button' );
 	saveNoteButton.className = 'media-model-control-button';
 	saveNoteButton.id = 'media-model-save-note-button';
 	saveNoteButton.innerHTML = 'Save note to server';
-	pathControls.appendChild(saveNoteButton);
+	guiControls.appendChild(saveNoteButton);
 
 	viewport.appendChild( helpOverlay );
 	viewport.appendChild( helpPrompt );
 	wrapper.appendChild( viewport );
-	viewport.appendChild( pathControls );
+	viewport.appendChild( guiControls );
 
 	// create scene and establish lighting
 	scene = new THREE.Scene();
@@ -250,9 +297,6 @@ function init(){
 	camera = new THREE.PerspectiveCamera( 45, windowWidth / windowHeight, 1, 2000 );
 	camera.position.z = 100;
 	scene.add( camera );
-
-	controls = new THREE.MediaModelControls( camera, viewport );
-	controls.addEventListener( 'change', render, false);	
 
 	// one ambient light of darkish color
 	var ambient = new THREE.AmbientLight( 0x130d00 );
@@ -300,11 +344,12 @@ function init(){
 
 			}
 			model = model[0];
-			cursor = new THREE.Vector3( model.position.x, model.position.y, model.position.y );
 			if(pValues.length > 0)
 				loadURLdata();
 	
-			
+			cameraControls = new THREE.MediaModelControls( camera, viewport );
+			cameraControls.addEventListener( 'change', render, false);	
+
 			qh = new QualityHandler(objPaths.low, mtlPaths.low);
 			qh.mtlLoad.default.path = mtlPaths.default;
 			qh.mtlLoad.low.path = mtlPaths.low;
@@ -325,6 +370,11 @@ function init(){
 					console.log('Swapped for test normal map material');
 				});
 			}
+			ph = new PinHandler();
+			paths.push(new THREE.MediaModelPath(colorChooser()));
+			ph.setPath(paths[0]);
+
+			modelLoaded = true;
 		});
 		loader.load( objPaths.low ? objPaths.low : objPaths.default, mtlPaths.low ? mtlPaths.low : mtlPaths.default);
 
@@ -333,12 +383,6 @@ function init(){
 	console.log('Loading the following mtl: ');
 	console.log(mtlPaths.low);
 
-	// establish another pin, to follow the cursor and represent where the pins will appear
-	cursorPin = new THREE.Mesh( pin.geometry, new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) );
-	scene.add( cursorPin );
-			// a small positional light that will hug our cursor and approach the model
-	cursorPin.add( cursorPLight );
-	cursorPLight.position.y = -20;
 
 	// establish our renderer
 	renderer = new THREE.WebGLRenderer();
@@ -359,8 +403,6 @@ function init(){
 	viewport.addEventListener( 'mouseout', onMouseOut, false);
 	viewport.addEventListener( 'keydown', onKeyDown, false);*/
 
-	path.rebuildPath();
-
 	var modalMessage = document.createElement( 'div' );
 	modalMessage.id = 'modal-message';
 	modalMessage.innerHTML = '&nbsp'
@@ -368,177 +410,21 @@ function init(){
 } // end init
 
 function animate() {
-	controls.update();
+	if(cameraControls) cameraControls.update();
 	requestAnimationFrame( animate );
 	render();
 }
 function render() {
 	//console.log(scene.children);
 	// check for cursor going over model
-	if ( model.length > 0 ){
-		repositionDistances();
-		var vector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
-		projector.unprojectVector( vector, camera );
-		var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
-		var modelIntersects = ray.intersectObjects(model);
-		var pinIntersects = ray.intersectObject(pinRoot, true);
-		//console.log(intersects);
-		if(modelIntersects &&  modelIntersects[0] &&  modelIntersects[0].point )
-			cursor.copy( modelIntersects[0].point );
-
-		if(modelIntersects.length > 0
-			&& (pinIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) < pinIntersects[0].point.distanceTo(camera.position))) {
-			pinHandler.clear();
-			highlighted = true;
-		}
-		else if (pinIntersects.length > 0
-			&& (modelIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) > pinIntersects[0].point.distanceTo(camera.position))) {
-			cursorPin.visible = false;
-			//cursor.copy( pinIntersects[0].object.position);
-			pinHandler.setObject(pinIntersects[0].object);
-			highlighted = true;
-		}
-		else{
-			highlighted = false;
-			pinHandler.clear();
-		}
-
-	}
 	renderer.render( scene, camera );
-	pinHandler.update();
+	if(ph) ph.update();
 	if(qh) qh.update();
 }
 
-/*
-function removePoint( colorID ){
-	for( var i=0; i<ul.children.length; i++) {
-		if(ul.children[i].id==colorID){
-			jQuery('#'+colorID).remove();
-			jQuery('#'+colorID).sortable('destroy'); //call widget-function destroy
-			jQuery('.ui-sortable-placeholder').remove();
-			colorAvailable[colors.indexOf(parseInt(colorID, 16))] = true;
-			//delete(pinHandler.object);
-			break;
-		}
-	}
-	console.log(ul.children);
-	console.log('Removed ' + colorID + ' from the set.');
-	rebuildPath(ul.children);
-}
-
-function addPoint(location) {
-	var color = colorChooser();
-	console.log("adding new point of ");
-	console.log(color);
-	if(color==false) return;
-	var pinMaterial = new THREE.MeshPhongMaterial();
-	pinMaterial.color = color;
-	path.colorID.push( color.getHexString() );
-	path.pins.push( { 	
-			mesh: new THREE.Mesh(path.pinGeometry, pinMaterial),
-			up: new THREE.Vector3()
-		});
-	var index = path.pins.length-1;
-	pinRoot.add(path.pins[index].mesh);
-	//path.pins[path.pins.length - 1].mesh.position.set(cursor.x, cursor.y, cursor.z);
-	path.pins[index].up = orientPin(path.pins[index].mesh, location);
-	path.pins[index].mesh.name = color.getHexString();
-
-	var li = document.createElement( 'li' );
-	li.className = 'pin-button';
-	li.id = color.getHexString();
-	//li.innerHTML = "";
-	li.style.backgroundColor = '#' + color.getHexString();
-	li.onmouseover = function(event){
-		event.target.style.backgroundColor = adjustColor(event.target.style.backgroundColor, 40);
-	};
-	li.onmouseout = function(event){
-		event.target.style.backgroundColor = adjustColor(event.target.style.backgroundColor, -40);
-	};
-
-	li.appendChild(document.createElement('br'));
-	path.ui.push(li);
-	ul.appendChild(li);
-	rebuildPath(ul.children);
-	//scene.add(newLine);
-	//model.visible = false;
-}
-
-
-
-function positionDistance(i) {
-	var screenPos = new THREE.Vector3().copy(path.pins[i].mesh.position).add(path.pins[i+1].mesh.position).multiplyScalar(0.5);
-	projector.projectVector( screenPos, camera );
-	screenPos.x = ( screenPos.x * windowHalfX ) + windowHalfX;
-	screenPos.y = - ( screenPos.y * windowHalfY ) + windowHalfY;
-	if(screenPos.x > 0 && screenPos.x < windowWidth && screenPos.y > 0 && screenPos.y < windowHeight) {
-		path.distances[i].element.style.left = screenPos.x + 'px';
-		path.distances[i].element.style.top = screenPos.y + 'px';
-		path.distances[i].element.style.visibility = 'visible';
-	}
-	else
-		path.distances[i].element.style.visibility = 'collapse';
-}
-
-function repositionDistances() {
-	for(var i=0; i<path.distances.length; i++){
-		positionDistance(i);
-	}
-}
-
-function rebuildPath(newOrder){
-		scene.remove(path.lineRibbon);
-		scene.remove(pinRoot);
-		pinRoot = new THREE.Object3D();
-		scene.add(pinRoot);
-
-		//console.log(viewport.hasChildNodes());
-		while(distancesLayer.hasChildNodes()){
-			distancesLayer.removeChild(distancesLayer.lastChild);
-		}
-		var newRibbon = new THREE.Ribbon(new THREE.Geometry(), path.lineRibbon.material);
-		var newPins = [];
-		var newDistances = [];
-		var newColorID = [];
-		var oldIndex = -1, newIndex = -1;
-		path.distance.value = 0;
-		for(var i=0; i<newOrder.length; i++) {
-			//if(newOrder[i].id == '') continue;
-			newPins.push(path.pins[path.colorID.indexOf(newOrder[i].id)]);
-			newColorID.push(newOrder[i].id);
-			pinRoot.add(newPins[i].mesh);
-			if(i>0) {
-				newDistances.push({
-					value: newPins[i-1].mesh.position.distanceTo(newPins[i].mesh.position),
-					element: document.createElement( 'div' )
-				});
-				distancesLayer.appendChild(newDistances[i-1].element);
-				newDistances[i-1].element.className = 'media-model-floating-distance-text';
-				newDistances[i-1].element.innerHTML = newDistances[i-1].value.toFixed(2);
-				path.distance.value += newDistances[i-1].value;
-			}
-			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newPins[i].mesh.position));
-			newRibbon.geometry.vertices.push( new THREE.Vector3().copy(newPins[i].mesh.position).add(newPins[i].up));
-			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
-			newRibbon.geometry.colors.push(new THREE.Color(parseInt(newColorID[i],16)));
-		}
-		path.distance.element.innerHTML = path.distance.value.toFixed(2);
-		repositionDistances();
-		path.lineRibbon = newRibbon;
-		path.pins = newPins;
-		path.distances = newDistances;
-		path.colorID = newColorID;
-		//console.log('Old index is ' + oldIndex + ' and new index is ' + newIndex);
-		//repositionDistances(i);
-		scene.add(path.lineRibbon);
-
-		currentURL = generateURL();
-	}
-*/
-
 jQuery(wrapper).disableSelection();
 jQuery(viewport).disableSelection();
-jQuery(pathControls).disableSelection();
+jQuery(guiControls).disableSelection();
 jQuery(distancesLayer).disableSelection();
 
 // general motion functionality
@@ -580,7 +466,7 @@ function orientPin(pin, location){
 	pinUp.copy( model.geometry.faces[closestFaceIndex].normal );
 	// we cross the up vector with -1,0,0 so the pin points in the direction we want it to (on to the model)
 
-	pinUp.multiplyScalar( pin.geometry.boundingSphere.radius/2 );
+	pinUp.multiplyScalar( protopin.geometry.boundingSphere.radius/2 );
 	// and add it to the pin's position
 	pin.position.add( pinUp );
 
@@ -662,7 +548,7 @@ function loadURLdata() {
 	if(pValues[i] !='pins=') {
 		pValues[i] = pValues[i].substr(pValues[i].indexOf('=')+1);
 		while(i<pValues.length) {
-			path.addPoint(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
+			ph.path.addPin(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
 			i+=3;
 		}
 	}
@@ -674,10 +560,10 @@ function generateURL() {
 		URL += camera.matrixWorld.elements[i].toPrecision(7) + ',';
 	}
 	URL += 'pins=';
-	for(var i=0; i<path.pins.length; i++) {
-		URL += path.pins[i].mesh.position.x.toPrecision(7) + ','
-			+ path.pins[i].mesh.position.y.toPrecision(7) + ',' 
-			+ path.pins[i].mesh.position.z.toPrecision(7) + ',';
+	for(var i=0; i<ph.path.pins.length; i++) {
+		URL += ph.path.pins[i].mesh.position.x.toPrecision(7) + ','
+			+ ph.path.pins[i].mesh.position.y.toPrecision(7) + ',' 
+			+ ph.path.pins[i].mesh.position.z.toPrecision(7) + ',';
 	}
 	return URL;
 }
@@ -725,12 +611,12 @@ function loadNote(note){
 	}
 	for(var i=0; i<colors.length; i++) {
 		if(!colorAvailable[i])
-			removePoint(colors[i].toString(16));
+			removePin(colors[i].toString(16));
 	}
 
 	if(note.pins != '') {
 		for(var i=0; i<pins.length; i+=3) {
-			addPoint(new THREE.Vector3(parseFloat(pins[i]), parseFloat(pins[i+1]), parseFloat(pins[i+2])));
+			addPin(new THREE.Vector3(parseFloat(pins[i]), parseFloat(pins[i+1]), parseFloat(pins[i+2])));
 		}
 	}
 }

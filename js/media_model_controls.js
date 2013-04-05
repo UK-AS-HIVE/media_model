@@ -27,6 +27,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	this.minDistance = 0;
 	this.maxDistance = Infinity;
 
+
 	// internals
 
 	var scope = this;
@@ -46,6 +47,11 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	var STATE = { NONE : -1, ROTATE : 0 };
 	var state = STATE.NONE;
+
+	var mouse2D = new THREE.Vector2(0, 0);
+	this.mouse2D = function(){return mouse2D;}
+	var mouse3D = new THREE.Vector3(0, 0, 1);
+	this.mouse3D = function(){return mouse3D;}
 
 	// events
 
@@ -166,7 +172,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	var lastMouseDown = new Date().getTime();
 	function onMouseDown( event ) {
-		console.log(event);
+		//console.log(event);
 
 		if(event.target.className === "media-model-control-button"){
 			if(event.target.id === 'media-model-generate-url-button')
@@ -190,17 +196,17 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 		if( event.which == 1 ){
 			mouse1Down = true;
-			if(pinHandler.object){
-				pinHandler.grabbed = true;
+			if(ph.mesh){
+				ph.grabbed = true;
 			}
 			var newMouseDown = new Date().getTime();
 			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
 			if( newMouseDown - lastMouseDown < 250 ){
-				if(pinHandler.object)
-					removePoint(pinHandler.object.name);
+				if(ph.mesh)
+					ph.path.removePin(ph.index);
 				else {
-					console.log('adding point');
-					addPoint(cursor);
+					//console.log('adding point');
+					ph.path.addPin(ph.cursor);
 				}
 			}
 			lastMouseDown =  new Date().getTime();
@@ -232,7 +238,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 			rotateStart.copy( rotateEnd );
 			rotating = true;
-			this.center = cursorPin.position;
+			this.center = ph.pin.position;
 			return;
 		}
 
@@ -242,32 +248,27 @@ THREE.MediaModelControls = function ( object, domElement ) {
 				state = STATE.NONE;
 				this.center = new THREE.Vector3();
 		}
-		if( mouse.x && mouse.y ){
+		if( mouse2D.x && mouse2D.y ){
 			//document.body.style.cursor = "none";
-			var dx = mouse.x - event.offsetX + fix.x;
-			var dy = mouse.y - event.offsetY + fix.y;
+			var dx = mouse2D.x - event.offsetX + fix.x;
+			var dy = mouse2D.y - event.offsetY + fix.y;
 			if( event.which == 1 ){
 					camera.rotation.x += dy * 0.002;
 					camera.rotation.y += dx * 0.002;
 			}
 			else if( event.which == 2 ){
-				//var forwardVector = new THREE.Vector3(mouse3D.x, mouse3D.y, 1);
-				//projector.unprojectVector(forwardVector, camera);
-				//forwardVector.normalize();
 				panCamera(dx, dy);
 			}
-
 			// don't do anything unless we have a model loaded!
-			if( model && !rotating){
-				//var cursorPinUp = new THREE.Vector3();
-				orientPin( cursorPin, cursor);
+			if( !rotating ){
+				orientPin( ph.pin, ph.cursor);
 			}
 		}
 		else
 			document.body.style.cursor = "";
 		// update our known 2d/3d mouse coordinates
-		mouse.x = event.offsetX + fix.x;
-		mouse.y = event.offsetY + fix.y;
+		mouse2D.x = event.offsetX + fix.x;
+		mouse2D.y = event.offsetY + fix.y;
 		mouse3D.x = ( (event.offsetX + fix.x) / windowWidth ) * 2 - 1;
 		mouse3D.y = - ( (event.offsetY + fix.y) / windowHeight ) * 2 + 1;
 		// end code moved from media_model.js
@@ -275,8 +276,8 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	}
 
 	function onMouseUp( event ) {
-		if(pinHandler.grabbed)
-			pinHandler.grabbed = false;
+		if(ph.grabbed)
+			ph.grabbed = false;
 
 		if ( ! scope.userRotate ) return;
 
@@ -292,7 +293,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 		event.preventDefault();
 		// we want a direction vector which points inside from the location of the camera
 		var direction = new THREE.Vector3();
-		direction.copy( cursor );
+		direction.copy( ph.cursor );
 		// we use model[0] since it seems to contain "most" of the model data
 		direction.sub( camera.position );
 		if((direction.lengthSq() > 100 || event.wheelDelta < 0)
@@ -307,12 +308,30 @@ THREE.MediaModelControls = function ( object, domElement ) {
 		//console.log("ON KEY DOWN!");
 		//console.log(event);
 		switch(event.keyCode){
-			case 70: // 'f'
+			case 70: // 'f' for fullscreen
 				fullscreenToggle();
 				break;
-			case 72: // 'h'
+			case 72: // 'h' for help
 				jQuery(helpOverlay).toggle();
 				jQuery(helpPrompt).toggle();
+				break;
+			case 78: // 'n' for next path color
+				for(var i=0; i<paths.length; i++) 
+					if(paths[i] === ph.path) {
+						if(!paths[i+1])
+							paths[i+1] = new THREE.MediaModelPath(colorChooser());
+						ph.setPath(paths[i+1]);
+						break;
+					}
+				break;
+			case 76: // 'l' for line
+				ph.path.setType('LINE');
+				break;
+			case 79: // 'o'  for connected path
+				ph.path.setType('POLYGON');
+				break;
+			case 80: // 'p' for points
+				ph.path.setType('POINTS');
 				break;
 		}
 	}

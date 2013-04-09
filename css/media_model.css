@@ -18,10 +18,12 @@
     background-color: #A0A0A0;
 }
 #media-model-gui-controls { 
-	top: 5px;
-	left: 5px;
 	position: absolute;
-	float:right;
+	top: 0.5%;
+	min-width: 99%;
+	left: 0.5%;
+	right: 0.5%;
+	
 }
 #media-model-viewport {
     position: absolute;
@@ -49,7 +51,7 @@
 	font-family:Verdana;
 	font-size:10px;
 	font-weight:bold;
-	padding:3px 18px;
+	padding:3px 10px;
 	text-decoration:none;
 	text-shadow:1px 1px 0px #ffffff;
 	text-align:center;
@@ -225,8 +227,10 @@ a.media-model-saved-notes-selector
     overflow: hidden;
 }
 #media-model-left-buttons{
+    left: 5px;
     float: left;
 }
 #media-model-right-buttons{
+    right: 5px;
     float: right;
 }

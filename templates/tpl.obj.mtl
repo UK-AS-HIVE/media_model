@@ -1,0 +1,13 @@
+#
+# Standard material for use with:
+# Media Model and Lichfield project models
+# 4/5/2013
+#
+
+newmtl material_0
+Ka 1 1 1
+Kd 1 1 1
+Ks 0.05 0.05 0.05
+illum 1
+Ns 30
+map_Kd texture.jpg

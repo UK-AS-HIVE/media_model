@@ -1,12 +1,18 @@
-var objPaths, 
-	mtlPaths, 
-	fileId, 
-	savedNotes = [], 
-	qh,
-	ph,
+var objPaths, mtlPaths, fileId, savedNotes = [], 
+	qh, ph,
 	paths = [],
+	modelLoaded = false, highlighted = false, rotating = false,
+	helpOverlay, helpPrompt, 
+	viewport, distancesLayer,
+	cameraControls, guiControls,
+	URLButton, saveNoteButton, loadNoteButton, colorButton, modeButton, addNotation,
 	wrapper = document.createElement('div'),
-	modelLoaded = false;
+	defaultWindow = {width: 800, height: 600},
+	windowWidth, windowHeight, windowHalfX, windowHalfY,
+	camComponents = {
+		up: new THREE.Vector3(),
+ 		right: new THREE.Vector3()
+ 	};
 
 wrapper.id = 'media-model-wrapper';
 wrapper.name = 'Media Model Wrapper';
@@ -15,25 +21,10 @@ var pValues = location.search.replace('?', '').split(',');
 if(pValues[pValues.length-1]=='')
 	pValues.pop();
 
-// moved this stuff outside so generateURL() (and saveNote()) could be run outside of the main function.
-var helpOverlay, helpPrompt, cameraControls, viewport, distancesLayer, guiControls, URLButton, saveNoteButton, loadNoteButton;
-
-var defaultWindow = {width: 800, height: 600};
-var windowWidth, windowHeight, windowHalfX, windowHalfY;
-
-var camComponents = {
- 	up: new THREE.Vector3(),
- 	right: new THREE.Vector3(),
- 	hDegs: 0,
- 	vDegs: 0,
- 	radius: 0,
- 	start: new THREE.Vector3() };
-
 var dirLight = new THREE.DirectionalLight( 0xC8B79D );
-var camera, scene, projector, renderer, highlighted = false;
+var camera, scene, projector, renderer;
 
 var model = [];
-var rotating = false;
 
 var colors = [
 	0xd10000,
@@ -47,9 +38,10 @@ var colors = [
 
 var colorAvailable = [ true, true, true, true, true, true, true ];
 
-
 // helper objects
-var protopin = {geometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ), material: new THREE.MeshPhongMaterial( { color : new THREE.Color(0xfffff)} )
+var protopin = {
+	geometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ),
+	material: new THREE.MeshPhongMaterial( { color : new THREE.Color(0xfffff)} )
 };
 
 protopin.geometry.computeBoundingSphere();
@@ -64,8 +56,10 @@ var PinHandler = function(){
 	var pl = new THREE.PointLight( 0xffffff, 1, 1000 );
 	pin.add( pl );
 	pl.position.y = -20;
-	var mesh, path, index, grabbed, up;
+	var  path, grabbed, up;
+	var target = { index: 0, mesh: new THREE.Mesh(), path: null, up: new THREE.Vector3()};
 	return{
+		target: target,
 		cursor: cursor,
 		color: color,
 		pin: pin,
@@ -77,11 +71,11 @@ var PinHandler = function(){
 		},
 		setObject:function(path, index){
 			//selectedObject.scale.set(1.6, 1.6, 1.6);
-			this.path = path;
-			this.index = index
-			this.mesh = path.pins[index].mesh;
-			this.up = path.pins[index].up
-			this.color = path.color;
+			this.target.path = path;
+			this.target.index = index
+			this.target.mesh = path.pins[index].mesh;
+			this.target.up.copy(path.pins[index].up);
+			//this.color = path.color;
 			//this.mesh.scale.set(1.6, 1.6, 1.6);
 			//domObject = document.getElementById(this.object.name);
 		},
@@ -121,19 +115,28 @@ var PinHandler = function(){
 				ph.clear();
 			}
 
-			if(this.mesh)
+			if(this.target.mesh)
 				if(this.grabbed){
-					this.mesh.position.set(this.cursor.x, this.cursor.y, this.cursor.z);
+					for(var i=0;i<paths.length;i++){
+						if(paths[i].color == this.target.mesh.material.color)
+							this.setPath(paths[i]);
+					}
+					//this.pin.material.color = this.path.color;
+					//this.target.index = index
+					//this.target.mesh = path.pins[index].mesh;
+					//this.target.up.copy(path.pins[index].up);
+					orientPin(this.target.mesh, this.cursor);
+					//this.target.mesh.position.set(this.cursor.x, this.cursor.y, this.cursor.z);
 					this.path.rebuildPath();
 				}
 				else{//console.log("spin");
-					rotateAroundWorldAxis(this.mesh, this.up, 0.05);
+					rotateAroundWorldAxis(this.target.mesh, this.target.up, 0.05);
 				}
 		},
 		clear:function(){
 			if(!this.grabbed){
 				this.pin.visible = true;
-				return (this.mesh = null);
+				return (this.target.mesh = null);
 			}
 		}
 	}
@@ -284,6 +287,18 @@ function init(){
 	saveNoteButton.innerHTML = 'Save note to server';
 	guiControls.appendChild(saveNoteButton);
 
+	colorButton = document.createElement( 'button' );
+	colorButton.className = 'media-model-control-button';
+	colorButton.id = 'media-model-color-button';
+	colorButton.innerHTML = 'Change color';
+	guiControls.appendChild(colorButton);
+
+	modeButton = document.createElement( 'button' );
+	modeButton.className = 'media-model-control-button';
+	modeButton.id = 'media-model-mode-button';
+	modeButton.innerHTML = 'Mode: line';
+	guiControls.appendChild(modeButton);
+
 	viewport.appendChild( helpOverlay );
 	viewport.appendChild( helpPrompt );
 	wrapper.appendChild( viewport );
@@ -359,17 +374,7 @@ function init(){
 			qh.objLoad.low.path = objPaths.low;
 			//qh.objLoad.med.path = objPaths.med;
 			//qh.objLoad.high.path = objPaths.high;
-			if(fileId=="26"){
-				var result = THREE.ImageUtils.loadTexture('https://media-dev.as.uky.edu/media-dev3/sites/default/files/Chads/Chad217_normaltest_normal.png', {}, function() {
-					console.log('Successfully loaded test normal map material');
-					//while(!model){
-						//waiting for model to load
-					//}
-					model.material.normalMap = result;
-					model.material.needsUpdate = true;
-					console.log('Swapped for test normal map material');
-				});
-			}
+
 			ph = new PinHandler();
 			paths.push(new THREE.MediaModelPath(colorChooser()));
 			ph.setPath(paths[0]);
@@ -390,7 +395,7 @@ function init(){
 	renderer.setClearColorHex( 0x8e8272, 1 );
 
 	distancesLayer = document.createElement( 'div' );
-	distancesLayer.id = 'distances-layer';
+	distancesLayer.id = 'media-model-distances-layer';
 	viewport.appendChild( distancesLayer );
 
 	viewport.appendChild( renderer.domElement );
@@ -409,7 +414,20 @@ function init(){
 	container.appendChild(modalMessage);
 } // end init
 
+var powerswitch = false;
 function animate() {
+	if(!powerswitch && fileId==='26' && qh && qh.mtlLoad.quality.name === 'high' && model.material.map){
+		powerswitch = true;
+		var result = THREE.ImageUtils.loadTexture('https://media-dev.as.uky.edu/media-dev3/sites/default/files/Chads/Chad217_normaltest_normal.png', {}, function() {
+			console.log('Successfully loaded test normal map material');
+			model.material.normalMap = result;
+			model.material.needsUpdate = true;
+			console.log('Swapped for test normal map material');
+			model.material.map.anisotropy = renderer.getMaxAnisotropy();
+			model.material.map.needsUpdate = true;
+			console.log('Enabled anisotropy x' + renderer.getMaxAnisotropy() + ', maximum for this renderer');
+		});
+	}
 	if(cameraControls) cameraControls.update();
 	requestAnimationFrame( animate );
 	render();
@@ -535,23 +553,38 @@ function adjustColor(color, value) {
 function loadURLdata() {
 	// you were reodering this function to take input the same way generate generates
 	// gl 
-	var i, loadedCameraMatrix = new THREE.Matrix4();
-	pValues[0] = pValues[0].substr(pValues[0].indexOf('=')+1);
-	for(i=0; i<pValues.length; i++)
-		if(pValues[i].indexOf('pins=') != -1) {
-			break;
-		}
-		else
+	var i=0, loadedCameraMatrix = new THREE.Matrix4();
+	if(pValues[i].indexOf('cam=') == 0){
+		pValues[0] = pValues[0].substr(pValues[0].indexOf('=')+1);
+		for(i=0; i<loadedCameraMatrix.elements.length; i++)
 			loadedCameraMatrix.elements[i]=parseFloat(pValues[i]);	
-	camera.matrix.identity();
-	camera.applyMatrix(loadedCameraMatrix);
-	if(pValues[i] !='pins=') {
-		pValues[i] = pValues[i].substr(pValues[i].indexOf('=')+1);
-		while(i<pValues.length) {
-			ph.path.addPin(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
-			i+=3;
-		}
+		camera.matrix.identity();
+		camera.applyMatrix(loadedCameraMatrix);
 	}
+	var index = 0;
+	var input = true;
+	var pathType;
+	if(!pValues[i] || pValues[i].indexOf('paths') != 0)
+		return;
+	do{
+		pathType = pValues[i].substr(pValues[i].indexOf('-')+1, 1);
+		//console.log("YEAH"+pathType);
+		pValues[i] = pValues[i].substr(('paths['+index+'-'+pathType+']=').length);
+		if(!paths[index]) paths.push(new THREE.MediaModelPath(colorChooser()));
+		do{
+			console.log(""+parseFloat(pValues[i])+","+parseFloat(pValues[i+1])+","+parseFloat(pValues[i+2])+"");
+			paths[index].addPin(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
+			i+=3;
+		}while(i<pValues.length && pValues[i].indexOf('paths') )
+		if(pathType === 'p')
+			paths[index].setType('POINT');
+		else if(pathType === 'l')
+			paths[index].setType('LINE');
+		else if(pathType ==='o')
+			paths[index].setType('POLYGON');
+		index++;
+		//i++;
+	}while(i<pValues.length);
 }
 
 function generateURL() {
@@ -559,11 +592,14 @@ function generateURL() {
 	for(var i=0; i<16; i++) {
 		URL += camera.matrixWorld.elements[i].toPrecision(7) + ',';
 	}
-	URL += 'pins=';
-	for(var i=0; i<ph.path.pins.length; i++) {
-		URL += ph.path.pins[i].mesh.position.x.toPrecision(7) + ','
-			+ ph.path.pins[i].mesh.position.y.toPrecision(7) + ',' 
-			+ ph.path.pins[i].mesh.position.z.toPrecision(7) + ',';
+	for(var i=0; i<paths.length; i++){
+		if(paths[i].pins.length<1) continue;
+		URL += 'paths['+ i + '-'+paths[i].type()+']=';
+		for(var j=0; j<paths[i].pins.length; j++) {
+			URL += paths[i].pins[j].mesh.position.x.toPrecision(7) + ','
+				+ paths[i].pins[j].mesh.position.y.toPrecision(7) + ',' 
+				+ paths[i].pins[j].mesh.position.z.toPrecision(7) + ',';
+		}
 	}
 	return URL;
 }

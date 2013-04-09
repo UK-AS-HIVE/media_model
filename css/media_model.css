@@ -220,3 +220,7 @@ a.media-model-saved-notes-selector
 #media-model-loadnote-form{
 	display:none;
 }
+
+#media-model-distances-layer{
+    overflow: hidden;
+}

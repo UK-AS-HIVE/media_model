@@ -175,7 +175,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 		//console.log(event);
 
 		if(event.target.className === "media-model-control-button"){
-			if(event.target.id === 'media-model-generate-url-button')
+			if(event.target.id === 'media-model-url-button')
   				window.prompt ('Copy this URL:', generateURL());
 			else if(event.target.id === 'media-model-load-note-button')
 				jQuery( '#media-model-loadnote-form' ).dialog( 'open' );
@@ -196,18 +196,16 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 		if( event.which == 1 ){
 			mouse1Down = true;
-			if(ph.mesh){
+			if(ph.target.mesh){
 				ph.grabbed = true;
 			}
 			var newMouseDown = new Date().getTime();
 			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
 			if( newMouseDown - lastMouseDown < 250 ){
-				if(ph.mesh)
-					ph.path.removePin(ph.index);
-				else {
-					//console.log('adding point');
+				if(ph.target.mesh)
+					ph.path.removePin(ph.target.index);
+				else 
 					ph.path.addPin(ph.cursor);
-				}
 			}
 			lastMouseDown =  new Date().getTime();
 		}
@@ -253,8 +251,8 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			var dx = mouse2D.x - event.offsetX + fix.x;
 			var dy = mouse2D.y - event.offsetY + fix.y;
 			if( event.which == 1 ){
-					camera.rotation.x += dy * 0.002;
-					camera.rotation.y += dx * 0.002;
+				camera.rotation.x += dy * 0.002;
+				camera.rotation.y += dx * 0.002;
 			}
 			else if( event.which == 2 ){
 				panCamera(dx, dy);
@@ -318,9 +316,9 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			case 78: // 'n' for next path color
 				for(var i=0; i<paths.length; i++) 
 					if(paths[i] === ph.path) {
-						if(!paths[i+1])
-							paths[i+1] = new THREE.MediaModelPath(colorChooser());
-						ph.setPath(paths[i+1]);
+						if(!paths[(i+1)%colors.length])
+							paths[(i+1)%colors.length] = new THREE.MediaModelPath(colorChooser());
+						ph.setPath(paths[(i+1)%colors.length]);
 						break;
 					}
 				break;

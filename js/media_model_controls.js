@@ -304,7 +304,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	function onKeyDown( event ){
 		//console.log("ON KEY DOWN!");
-		//console.log(event);
+		console.log(event);
 		switch(event.keyCode){
 			case 70: // 'f' for fullscreen
 				fullscreenToggle();

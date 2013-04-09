@@ -4,8 +4,8 @@ var objPaths, mtlPaths, fileId, savedNotes = [],
 	modelLoaded = false, highlighted = false, rotating = false,
 	helpOverlay, helpPrompt, 
 	viewport, distancesLayer,
-	cameraControls, guiControls,
-	URLButton, saveNoteButton, loadNoteButton, colorButton, modeButton, addNotation,
+	cameraControls, guiControls, leftButtons, rightButtons,
+	URLButton, saveNoteButton, loadNoteButton, colorButton, modeButton, addNoteButton, fsButton,
 	wrapper = document.createElement('div'),
 	defaultWindow = {width: 800, height: 600},
 	windowWidth, windowHeight, windowHalfX, windowHalfY,
@@ -261,44 +261,65 @@ function init(){
 	helpOverlay = document.getElementsByClassName('media-model-help-overlay')[0];
 	helpPrompt = document.getElementsByClassName('media-model-help-prompt')[0];
 
+
+	guiControls = document.createElement( 'div' );
+	guiControls.id = 'media-model-gui-controls';
+
+	leftButtons = document.createElement( 'div' );
+	leftButtons.id = 'media-model-left-buttons';
+	guiControls.appendChild(leftButtons);
+	rightButtons = document.createElement( 'div' );
+	rightButtons.id = 'media-model-right-buttons';
+	guiControls.appendChild(rightButtons);
+
 	viewport = document.createElement( 'div' );
 	viewport.id = 'media-model-viewport';
 	viewport.name = 'Media Model Viewport';
 	jQuery(helpOverlay).hide();
 
-	guiControls = document.createElement( 'div' );
-	guiControls.id = 'media-model-gui-controls';
-
 	URLButton = document.createElement( 'button' );
 	URLButton.className = 'media-model-control-button';
 	URLButton.id = 'media-model-url-button';
 	URLButton.innerHTML = 'Generate URL';
-	guiControls.appendChild(URLButton);
+	leftButtons.appendChild(URLButton);
 
 	loadNoteButton = document.createElement( 'button' );
 	loadNoteButton.className = 'media-model-control-button';
 	loadNoteButton.id = 'media-model-load-note-button';
 	loadNoteButton.innerHTML = 'Load note from server';
-	guiControls.appendChild(loadNoteButton);
+	leftButtons.appendChild(loadNoteButton);
 
 	saveNoteButton = document.createElement( 'button' );
 	saveNoteButton.className = 'media-model-control-button';
 	saveNoteButton.id = 'media-model-save-note-button';
 	saveNoteButton.innerHTML = 'Save note to server';
-	guiControls.appendChild(saveNoteButton);
+	leftButtons.appendChild(saveNoteButton);
 
 	colorButton = document.createElement( 'button' );
 	colorButton.className = 'media-model-control-button';
 	colorButton.id = 'media-model-color-button';
-	colorButton.innerHTML = 'Change color';
-	guiControls.appendChild(colorButton);
+	colorButton.innerHTML = 'Switch color';
+	rightButtons.appendChild(colorButton);
 
 	modeButton = document.createElement( 'button' );
 	modeButton.className = 'media-model-control-button';
 	modeButton.id = 'media-model-mode-button';
-	modeButton.innerHTML = 'Mode: line';
-	guiControls.appendChild(modeButton);
+	modeButton.innerHTML = 'Switch mode';
+	rightButtons.appendChild(modeButton);
+	
+	addNoteButton = document.createElement( 'button' );
+	addNoteButton.className = 'media-model-control-button';
+	addNoteButton.id = 'media-model-mode-button';
+	addNoteButton.innerHTML = 'Add note to current';
+	rightButtons.appendChild(addNoteButton);
 
+	fsButton = document.createElement( 'button' );
+	fsButton.className = 'media-model-control-button';
+	fsButton.id = 'media-model-fs-button';
+	fsButton.innerHTML = 'Fullscreen';
+	rightButtons.appendChild(fsButton);
+
+//modeButton, addNoteButton, fsButton,
 	viewport.appendChild( helpOverlay );
 	viewport.appendChild( helpPrompt );
 	wrapper.appendChild( viewport );

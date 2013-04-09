@@ -224,3 +224,9 @@ a.media-model-saved-notes-selector
 #media-model-distances-layer{
     overflow: hidden;
 }
+#media-model-left-buttons{
+    float: left;
+}
+#media-model-right-buttons{
+    float: right;
+}

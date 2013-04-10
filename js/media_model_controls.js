@@ -47,6 +47,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	var STATE = { NONE : -1, ROTATE : 0 };
 	var state = STATE.NONE;
+	var buttonPress = false;
 
 	var mouse2D = new THREE.Vector2(0, 0);
 	this.mouse2D = function(){return mouse2D;}
@@ -178,9 +179,18 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			if(event.target.id === 'media-model-url-button')
   				window.prompt ('Copy this URL:', generateURL());
 			else if(event.target.id === 'media-model-load-note-button')
-				jQuery( '#media-model-loadnote-form' ).dialog( 'open' );
+				jQuery( '#media-model-load-note-form' ).dialog( 'open' );
 			else if(event.target.id === 'media-model-save-note-button')
-        		jQuery( '#media-model-addnote-form' ).dialog( 'open' );
+        		jQuery( '#media-model-save-notes-form' ).dialog( 'open' );
+        	else if(event.target.id === 'media-model-color-button' )
+        		ph.setPath(paths[(paths.indexOf(ph.path)+1)%colors.length]);
+        	else if(event.target.id === 'media-model-mode-button' )
+        		ph.path.setType();
+        	else if(event.target.id === 'media-model-add-note-button' )
+        		jQuery( '#media-model-add-note-form').dialog( 'open' );
+        	else if(event.target.id === 'media-model-fs-button' )
+        		fullscreenToggle();
+        	buttonPress = true;
         	return;
 		}
 
@@ -217,8 +227,10 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	var fix = {x: 0, y: 0};
 	function onMouseMove( event ) {
 		event.preventDefault();
+		if(buttonPress)
+			return;
 		var buttonFix = 0;
-		if(event.target.className == "media-model-control-button"){
+		if(event.target.className.indexOf("media-model-control-button")!==-1){
 			fix.x = event.target.offsetLeft;
 			fix.y = event.target.offsetTop;
 		}
@@ -274,6 +286,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	}
 
 	function onMouseUp( event ) {
+		buttonPress = false;
 		if(ph.grabbed)
 			ph.grabbed = false;
 
@@ -304,7 +317,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	function onKeyDown( event ){
 		//console.log("ON KEY DOWN!");
-		console.log(event);
+		//console.log(event);
 		switch(event.keyCode){
 			case 70: // 'f' for fullscreen
 				fullscreenToggle();

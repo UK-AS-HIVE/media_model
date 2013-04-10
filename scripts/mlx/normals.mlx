@@ -1,0 +1,28 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Duplicate Current layer"/>
+ <filter name="Quadric Edge Collapse Decimation (with texture)">
+  <Param type="RichInt" value="101418" name="TargetFaceNum"/>
+  <Param type="RichFloat" value="0" name="TargetPerc"/>
+  <Param type="RichFloat" value="1" name="QualityThr"/>
+  <Param type="RichFloat" value="1" name="Extratcoordw"/>
+  <Param type="RichBool" value="true" name="PreserveBoundary"/>
+  <Param type="RichFloat" value="1" name="BoundaryWeight"/>
+  <Param type="RichBool" value="true" name="OptimalPlacement"/>
+  <Param type="RichBool" value="true" name="PreserveNormal"/>
+  <Param type="RichBool" value="true" name="PlanarQuadric"/>
+  <Param type="RichBool" value="false" name="Selected"/>
+ </filter>
+ <filter name="Transfer Vertex Attributes to Texture (between 2 meshes)">
+  <Param type="RichMesh" value="1" name="sourceMesh"/>
+  <Param type="RichMesh" value="1" name="targetMesh"/>
+  <Param enum_val0="Vertex Color" enum_val1="Vertex Normal" enum_cardinality="4" enum_val2="Vertex Quality" enum_val3="Texture Color" type="RichEnum" value="1" name="AttributeEnum"/>
+  <Param type="RichAbsPerc" value="8.829" min="0" name="upperBound" max="441.449"/>
+  <Param type="RichString" value="_normal.png" name="textName"/>
+  <Param type="RichInt" value="512" name="textW"/>
+  <Param type="RichInt" value="512" name="textH"/>
+  <Param type="RichBool" value="false" name="overwrite"/>
+  <Param type="RichBool" value="false" name="assign"/>
+  <Param type="RichBool" value="true" name="pullpush"/>
+ </filter>
+</FilterScript>

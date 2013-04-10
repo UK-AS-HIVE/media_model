@@ -4,7 +4,7 @@ var objPaths, mtlPaths, fileId, savedNotes = [],
 	modelLoaded = false, highlighted = false, rotating = false,
 	helpOverlay, helpPrompt, 
 	viewport, distancesLayer,
-	cameraControls, guiControls, leftButtons, rightButtons,
+	cameraControls, guiControls, leftButtons, centerIcon, rightButtons,
 	URLButton, saveNoteButton, loadNoteButton, colorButton, modeButton, addNoteButton, fsButton,
 	wrapper = document.createElement('div'),
 	defaultWindow = {width: 800, height: 600},
@@ -65,9 +65,11 @@ var PinHandler = function(){
 		pin: pin,
 		path: path,
 		setPath:function(path){
+			centerIcon.style.backgroundColor = '#'+path.color.getHexString();
 			this.path = path;
 			this.color = path.color;
 			this.pin.material.color = this.color;
+			centerIcon.innerHTML = path.typeName();
 		},
 		setObject:function(path, index){
 			//selectedObject.scale.set(1.6, 1.6, 1.6);
@@ -235,13 +237,16 @@ var QualityHandler = function(modObjs, modMtls){
 				if(!mtlLoad.loading && mtlLoad.next().path) {
 					console.log('FPS is stable, attempting to download ' + mtlLoad.next().name + ' quality material');
 					mtlLoad.loading = true;
-					var result = THREE.ImageUtils.loadTexture(mtlLoad.next().path.replace('.obj.mtl', '.jpg'), {}, function() {
+					var result = THREE.ImageUtils.loadTexture(mtlLoad.next().path.replace('.mtl', '.jpg'), {}, function() {
 						console.log('Successfully loaded ' + objLoad.next().name + ' quality material');
 						model.material.map = result;
 						model.material.needsUpdate = true;
 						console.log('Swapped for ' + mtlLoad.next().name + ' quality material');
 						mtlLoad.loading = false;
 						mtlLoad.quality = QUALITY[mtlLoad.quality.value+1];
+						model.material.map.anisotropy = renderer.getMaxAnisotropy();
+						model.material.map.needsUpdate = true;
+						console.log('Enabled anisotropy x' + renderer.getMaxAnisotropy() + ', maximum for this renderer');
 					});
 				}
 			}
@@ -252,6 +257,8 @@ var QualityHandler = function(modObjs, modMtls){
 };
 
 function init(){
+	for(var i=0;i<colors.length;i++)
+		paths.push(new THREE.MediaModelPath(colorChooser()));
 
 	container = document.getElementById( 'file-'.concat(fileId) );
 	jQuery(container).prepend(wrapper);
@@ -271,6 +278,10 @@ function init(){
 	rightButtons = document.createElement( 'div' );
 	rightButtons.id = 'media-model-right-buttons';
 	guiControls.appendChild(rightButtons);
+	centerIcon = document.createElement( 'span' );
+	centerIcon.id = 'media-model-center-icon';
+	//centerIcon.innerHTML = 'Line';
+	guiControls.appendChild(centerIcon);
 
 	viewport = document.createElement( 'div' );
 	viewport.id = 'media-model-viewport';
@@ -309,7 +320,7 @@ function init(){
 	
 	addNoteButton = document.createElement( 'button' );
 	addNoteButton.className = 'media-model-control-button';
-	addNoteButton.id = 'media-model-mode-button';
+	addNoteButton.id = 'media-model-add-note-button';
 	addNoteButton.innerHTML = 'Add note to current';
 	rightButtons.appendChild(addNoteButton);
 
@@ -405,9 +416,9 @@ function init(){
 		loader.load( objPaths.low ? objPaths.low : objPaths.default, mtlPaths.low ? mtlPaths.low : mtlPaths.default);
 
 	console.log('Loading the following obj: ');
-	console.log(objPaths.low);
+	console.log(objPaths.low ? objPaths.low : objPaths.default);
 	console.log('Loading the following mtl: ');
-	console.log(mtlPaths.low);
+	console.log(mtlPaths.low ? mtlPaths.low : mtlPaths.default);
 
 
 	// establish our renderer
@@ -444,9 +455,6 @@ function animate() {
 			model.material.normalMap = result;
 			model.material.needsUpdate = true;
 			console.log('Swapped for test normal map material');
-			model.material.map.anisotropy = renderer.getMaxAnisotropy();
-			model.material.map.needsUpdate = true;
-			console.log('Enabled anisotropy x' + renderer.getMaxAnisotropy() + ', maximum for this renderer');
 		});
 	}
 	if(cameraControls) cameraControls.update();
@@ -464,6 +472,7 @@ function render() {
 jQuery(wrapper).disableSelection();
 jQuery(viewport).disableSelection();
 jQuery(guiControls).disableSelection();
+jQuery(centerIcon).disableSelection();
 jQuery(distancesLayer).disableSelection();
 
 // general motion functionality
@@ -591,7 +600,6 @@ function loadURLdata() {
 		pathType = pValues[i].substr(pValues[i].indexOf('-')+1, 1);
 		//console.log("YEAH"+pathType);
 		pValues[i] = pValues[i].substr(('paths['+index+'-'+pathType+']=').length);
-		if(!paths[index]) paths.push(new THREE.MediaModelPath(colorChooser()));
 		do{
 			console.log(""+parseFloat(pValues[i])+","+parseFloat(pValues[i+1])+","+parseFloat(pValues[i+2])+"");
 			paths[index].addPin(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
@@ -791,12 +799,11 @@ jQuery(document).ready(function(){
 		return false
 	});
 
-jQuery(document).ready(function(){
-      var noteTitle = jQuery("#noteTitle"),
-        noteText = jQuery("#noteText"),
+    var noteTitle = jQuery("#noteTitle"),
+       	noteText = jQuery("#noteText"),
         cam = jQuery("#cam"),
         pins = jQuery("#pins");
-    jQuery( "#media-model-loadnote-form" ).dialog({
+    jQuery( "#media-model-load-note-form" ).dialog({
       autoOpen: false,
       height: 400,
       width: 600,
@@ -814,7 +821,7 @@ jQuery(document).ready(function(){
       close: function() {
       }
       });
-      jQuery( "#media-model-addnote-form" ).dialog({
+      jQuery( "#media-model-save-note-form" ).dialog({
         autoOpen: false,
         height: 400,
         width: 600,
@@ -842,7 +849,6 @@ jQuery(document).ready(function(){
           //allFields.val( "" ).removeClass( "ui-state-error" );
         }
       });
-    })
 /*
 	jQuery('.media-model-control-button').bind('mouseout', function(){
 	  jQuery(viewport).trigger('mouseout');

@@ -24,6 +24,17 @@ THREE.MediaModelPath = function(c){
 				return 'o';
 		}
 	}
+
+	this.typeName = function(){
+		switch(type){
+			case TYPE.POINTS:
+				return 'POINTS';
+			case TYPE.LINE:
+				return 'LINE';
+			case TYPE.POLYGON:
+				return 'POLYGON';
+		}
+	}
 	
 	this.pins = pins;
 
@@ -32,7 +43,11 @@ THREE.MediaModelPath = function(c){
 	this.color = color;
 
 	this.setType = function ( typeName ){
-		type = TYPE[typeName];
+		if(typeName)
+			type = TYPE[typeName];
+		else
+			type=(type+1)%3
+		centerIcon.innerHTML = this.typeName();
 		this.rebuildPath();
 	}
 
@@ -128,7 +143,7 @@ THREE.MediaModelPath = function(c){
 				lineRibbon.geometry.colors.push(color);
 			}
 		}
-		if(type == TYPE.POLYGON){
+		if(type == TYPE.POLYGON && this.pins.length>2){
 			distances.push({
 				value: this.pins[i-1].mesh.position.distanceTo(this.pins[0].mesh.position),
 				element: document.createElement( 'div' )

@@ -9,7 +9,9 @@ THREE.MediaModelPath = function(c){
 		distances = [],
 		distance = 0,
 
-		lineRibbon = new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: color, side: THREE.DoubleSide, vertexColors: true } ));
+		lineRibbon = new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: color, side: THREE.DoubleSide, vertexColors: true } )),
+		note = "";
+
 	
 	var TYPE = { POINTS: 0, LINE: 1, POLYGON: 2};
 	var type = TYPE.LINE;
@@ -36,6 +38,8 @@ THREE.MediaModelPath = function(c){
 		}
 	}
 	
+	this.note = note;
+
 	this.pins = pins;
 
 	this.pinRoot = pinRoot;

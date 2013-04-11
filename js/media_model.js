@@ -556,6 +556,23 @@ jQuery.fn.extend({
 	} 
 }); 
 
+function colorName(color) {
+	if(color === paths[0].color)
+		return "RED";
+	else if(color === paths[1].color)
+		return "ORANGE";
+	else if(color === paths[2].color)
+		return "YELLOW";
+	else if(color === paths[3].color)
+		return "GREEN";
+	else if(color === paths[4].color)
+		return "BLUE";
+	else if(color === paths[5].color)
+		return "INDIGO";
+	else if(color === paths[6].color)
+		return "VIOLET";
+}
+
 function colorChooser() {
 	for(var i=0; i<colors.length; i++) {
 		if(colorAvailable[i]){
@@ -759,6 +776,26 @@ function resetWindow(w, h){
 	windowHalfY = windowHeight / 2;
 }
 
+function saveNoteMenu(){
+	var pathSelect = document.getElementById( 'media-model-path-select' );
+	for(var i=0;i<paths.length;i++){
+		if(paths[i].pins.length<1) continue;
+		var pathDomElement = document.createElement( 'option' );
+		pathDomElement.value = i;
+		pathDomElement.className = 'media-model-path-selector';
+		pathDomElement.innerHTML = paths[i].typeName() + '(' + paths[i].pins.length + ')';
+		pathDomElement.style.backgroundColor = '#'+paths[i].color.getHexString();
+		pathSelect.appendChild(pathDomElement);
+	}
+  	jQuery( '#media-model-save-note-form' ).dialog( 'open' );
+}
+
+function addNoteMenu(){
+    label = jQuery("label[for=media-model-add-note-text]");
+    label.text('Annotate the '+colorName(ph.path.color)+' '+ph.path.typeName()+', or just the model');
+    jQuery( '#media-model-add-note-form').dialog( 'open' );
+}
+
 jQuery(document).ready(function(){
 
 	for(var i=0; i<savedNotes.length; i++){
@@ -800,7 +837,8 @@ jQuery(document).ready(function(){
 	});
 
     var noteTitle = jQuery("#noteTitle"),
-       	noteText = jQuery("#noteText"),
+    	noteText = jQuery('#media-model-add-note-text'),
+        pathSelect = jQuery("#media-model-path-select"),
         cam = jQuery("#cam"),
         pins = jQuery("#pins");
     jQuery( "#media-model-load-note-form" ).dialog({
@@ -820,6 +858,23 @@ jQuery(document).ready(function(){
       },
       close: function() {
       }
+      });   
+    jQuery( "#media-model-add-note-form" ).dialog({
+      autoOpen: false,
+      height: 400,
+      width: 600,
+      modal: true,
+      buttons: {
+        "Save and continue": function() {
+          ph.path.note = noteText.val();
+        },
+        Cancel: function() {
+          jQuery( this ).dialog( "close" );
+        }
+      },
+      close: function() {
+      	noteText.val("");
+      }
       });
       jQuery( "#media-model-save-note-form" ).dialog({
         autoOpen: false,
@@ -831,13 +886,13 @@ jQuery(document).ready(function(){
               //allFields.removeClass( "ui-state-error" );
               saveNote({
                 title: noteTitle.val(),
-                text: noteText.val(),
+                note: paths[i].note(),
+                path: pathSelect.val(),
                 cam: cam.is(":checked"),
                 pins: pins.is(":checked")
               });
               noteTitle.val("");
-              noteText.val("");
-              //cam.prop("checked", false);
+                            //cam.prop("checked", false);
               //pins.prop("checked", false);
               jQuery( this ).dialog( "close" );
           },
@@ -846,6 +901,12 @@ jQuery(document).ready(function(){
           }
         },
         close: function() {
+			var pathSelect = document.getElementById( 'media-model-path-select' );
+			var pathCount = pathSelect.children.length-1;
+			for(var i=0;i<pathCount;i++){
+				pathSelect.removeChild(pathSelect.lastChild);
+			}
+        	//console.log("Submitted?");
           //allFields.val( "" ).removeClass( "ui-state-error" );
         }
       });

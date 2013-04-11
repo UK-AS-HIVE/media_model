@@ -192,6 +192,13 @@ a.media-model-saved-notes-selector
     text-shadow: -1px 0 white, 0 1px white,
       1px 0 white, 0 -1px white;
 }
+.media-model-path-selector {
+    font-weight:bold;
+    font-family:verdana, sans-serif;
+    position:absolute;
+    text-shadow: -1px 0 white, 0 1px white,
+      1px 0 white, 0 -1px white;
+}
 .media-model-help-overlay {
     pointer-events:none;
     color:rgb(255,255,255);

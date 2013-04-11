@@ -104,18 +104,38 @@ For each model intended for use in media_model, some steps should be taken to en
 
 3. Move all of the created files to public://media_model_files/. This folder might have been created automatically. We recommend keeping them out of your file management system, as they do not need to be for the module to work properly. 
 
-
-
+CONTROLS
+--------
+left click+drag:
+	Rotate camera around the current position of the camera.
+alt+left click+drag:
+	Rotate camera arounnd the position of the cursor on the model.
+middle click+drag:
+	Pan camera vertically and/or horizontally, with respect to the camera direction.
+double left click:
+	Drop pin at the location of the cursor marker.
+mouse wheel:
+	Zoom in (toward cursor location) or out.
+'f':
+	Toggle fullscreen mode.
+'h':
+	Toggle help menu visibility.
+'n':
+	Switch current path to the next path.
+'l':
+	Switch current path to LINE mode. All points form a single line.
+'o':
+	Switch current path to POLYGON mode. All points form a polygon.
+'p':
+	Switch current path to POINTS mode. All points are disconnected.
 
 FUTURE PLANS
 ------------
 
-Though the module is capable of use right now, the setup could be more
-configurable through the Drupal interface.
-
- * admin page for setting minimum dimensions to use
- * allow specifying a fallback formatter for smaller images
- * use queue or batch to generate the image tiles, instead of a drush script
+The module has a variety of expanded features that we would like to implement in time:
+	* Conversion of note system to be saved as Drupal nodes
+	* Full automation of model uploading workflow
+	* Fine tuning of graphical system to allow manual user control or smooth automated handling
 
 THANKS
 ------
@@ -131,3 +151,6 @@ REFERENCES
 ----------
 
 [1]: http://meshlab.sourceforge.net/
+[2]: http://www.as.uky.edu/ "University of Kentucky College of Arts & Sciences"
+[3]: http://www.lichfield-cathedral.org/
+[4]: http://lichfield.as.uky.edu/ "Manuscripts of Lichfield Cathedral"

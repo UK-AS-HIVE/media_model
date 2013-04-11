@@ -181,13 +181,13 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			else if(event.target.id === 'media-model-load-note-button')
 				jQuery( '#media-model-load-note-form' ).dialog( 'open' );
 			else if(event.target.id === 'media-model-save-note-button')
-        		jQuery( '#media-model-save-notes-form' ).dialog( 'open' );
+				saveNoteMenu();
         	else if(event.target.id === 'media-model-color-button' )
         		ph.setPath(paths[(paths.indexOf(ph.path)+1)%colors.length]);
         	else if(event.target.id === 'media-model-mode-button' )
         		ph.path.setType();
         	else if(event.target.id === 'media-model-add-note-button' )
-        		jQuery( '#media-model-add-note-form').dialog( 'open' );
+        		addNoteMenu();
         	else if(event.target.id === 'media-model-fs-button' )
         		fullscreenToggle();
         	buttonPress = true;

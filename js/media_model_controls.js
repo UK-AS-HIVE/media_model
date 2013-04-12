@@ -48,11 +48,16 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	var STATE = { NONE : -1, ROTATE : 0 };
 	var state = STATE.NONE;
 	var buttonPress = false;
+	var modalActive = false;
 
 	var mouse2D = new THREE.Vector2(0, 0);
 	this.mouse2D = function(){return mouse2D;}
 	var mouse3D = new THREE.Vector3(0, 0, 1);
 	this.mouse3D = function(){return mouse3D;}
+
+	this.toggleModal = function(val){
+		modalActive = val;
+	}
 
 	// events
 
@@ -179,7 +184,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			if(event.target.id === 'media-model-url-button')
   				window.prompt ('Copy this URL:', generateURL());
 			else if(event.target.id === 'media-model-load-note-button')
-				jQuery( '#media-model-load-note-form' ).dialog( 'open' );
+				loadNoteMenu();
 			else if(event.target.id === 'media-model-save-note-button')
 				saveNoteMenu();
         	else if(event.target.id === 'media-model-color-button' )
@@ -318,6 +323,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	function onKeyDown( event ){
 		//console.log("ON KEY DOWN!");
 		//console.log(event);
+		if(modalActive) return;
 		switch(event.keyCode){
 			case 70: // 'f' for fullscreen
 				fullscreenToggle();

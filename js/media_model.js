@@ -4,7 +4,7 @@ var objPaths, mtlPaths, fileId, savedNotes = [],
 	modelLoaded = false, highlighted = false, rotating = false,
 	helpOverlay, helpPrompt, 
 	viewport, distancesLayer,
-	cameraControls, guiControls, leftButtons, centerIcon, rightButtons,
+	controls, guiControls, leftButtons, centerIcon, rightButtons,
 	URLButton, saveNoteButton, loadNoteButton, colorButton, modeButton, addNoteButton, fsButton,
 	wrapper = document.createElement('div'),
 	defaultWindow = {width: 800, height: 600},
@@ -83,7 +83,7 @@ var PinHandler = function(){
 		},
 		update:function(){
 
-			var vector = new THREE.Vector3().copy(cameraControls.mouse3D());
+			var vector = new THREE.Vector3().copy(controls.mouse3D());
 			projector.unprojectVector( vector, camera );
 			var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
 			var modelIntersects = ray.intersectObject(model);
@@ -394,8 +394,8 @@ function init(){
 			if(pValues.length > 0)
 				loadURLdata();
 	
-			cameraControls = new THREE.MediaModelControls( camera, viewport );
-			cameraControls.addEventListener( 'change', render, false);	
+			controls = new THREE.MediaModelControls( camera, viewport );
+			controls.addEventListener( 'change', render, false);	
 
 			qh = new QualityHandler(objPaths.low, mtlPaths.low);
 			qh.mtlLoad.default.path = mtlPaths.default;
@@ -457,7 +457,7 @@ function animate() {
 			console.log('Swapped for test normal map material');
 		});
 	}
-	if(cameraControls) cameraControls.update();
+	if(controls) controls.update();
 	requestAnimationFrame( animate );
 	render();
 }
@@ -642,9 +642,9 @@ function generateURL() {
 		if(paths[i].pins.length<1) continue;
 		URL += 'paths['+ i + '-'+paths[i].type()+']=';
 		for(var j=0; j<paths[i].pins.length; j++) {
-			URL += paths[i].pins[j].mesh.position.x.toPrecision(7) + ','
-				+ paths[i].pins[j].mesh.position.y.toPrecision(7) + ',' 
-				+ paths[i].pins[j].mesh.position.z.toPrecision(7) + ',';
+			URL += paths[i].pins[j].cursorPos.x.toPrecision(7) + ','
+				+ paths[i].pins[j].cursorPos.y.toPrecision(7) + ',' 
+				+ paths[i].pins[j].cursorPos.z.toPrecision(7) + ',';
 		}
 	}
 	return URL;
@@ -659,7 +659,7 @@ function saveNote(formResults) {
 	var data = {
 			fid: fid,
 			title: formResults.title,
-			text: formResults.text,
+			text: formResults.note,
 			cam: (formResults.cam ? urlData[0] : null),
 			pins: (formResults.pins ? urlData[1] : null),
 	};
@@ -681,6 +681,7 @@ function saveNote(formResults) {
 }
 
 function loadNote(note){
+	console.log(note);
 	var loadedCameraMatrix = new THREE.Matrix4(),
 		cam = note.cam.split(','),
 		pins = note.pins.split(',');
@@ -777,6 +778,7 @@ function resetWindow(w, h){
 }
 
 function saveNoteMenu(){
+	controls.toggleModal(true);
 	var pathSelect = document.getElementById( 'media-model-path-select' );
 	for(var i=0;i<paths.length;i++){
 		if(paths[i].pins.length<1) continue;
@@ -791,9 +793,15 @@ function saveNoteMenu(){
 }
 
 function addNoteMenu(){
+	controls.toggleModal(true);
     label = jQuery("label[for=media-model-add-note-text]");
     label.text('Annotate the '+colorName(ph.path.color)+' '+ph.path.typeName()+', or just the model');
     jQuery( '#media-model-add-note-form').dialog( 'open' );
+}
+
+function loadNoteMenu(){
+	controls.toggleModal(true);
+	jQuery( '#media-model-load-note-form' ).dialog( 'open' );
 }
 
 jQuery(document).ready(function(){
@@ -857,6 +865,7 @@ jQuery(document).ready(function(){
         }
       },
       close: function() {
+		controls.toggleModal(false);
       }
       });   
     jQuery( "#media-model-add-note-form" ).dialog({
@@ -873,7 +882,8 @@ jQuery(document).ready(function(){
         }
       },
       close: function() {
-      	noteText.val("");
+      	//noteText.val("");
+		controls.toggleModal(false);
       }
       });
       jQuery( "#media-model-save-note-form" ).dialog({
@@ -906,6 +916,7 @@ jQuery(document).ready(function(){
 			for(var i=0;i<pathCount;i++){
 				pathSelect.removeChild(pathSelect.lastChild);
 			}
+		controls.toggleModal(false);
         	//console.log("Submitted?");
           //allFields.val( "" ).removeClass( "ui-state-error" );
         }

@@ -154,7 +154,7 @@ function theme_model($variables) {
   </form>
   </div>
 
-<div id="media-model-add-note-form" title="Add note to current">
+<div id="media-model-add-note-form" title="View/edit annotation">
 <form>
 <fieldset>
   <label for="media-model-add-note-text"></label>

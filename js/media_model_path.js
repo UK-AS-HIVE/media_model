@@ -80,15 +80,15 @@ THREE.MediaModelPath = function(c){
 
 	this.addPin = function(location) {
 		this.pins.push( { 	
-				mesh: new THREE.Mesh(protopin.geometry, new THREE.MeshPhongMaterial()),
-				up: new THREE.Vector3()
+				mesh: new THREE.Mesh(protopin.geometry, new THREE.MeshPhongMaterial({color: color})),
+				up: new THREE.Vector3(),
+				cursorPos: new THREE.Vector3().copy(location)
 			});
 		var index = this.pins.length-1;
 
 		this.pinRoot.add(this.pins[index].mesh);
 
 		this.pins[index].up = orientPin(this.pins[index].mesh, location);
-		this.pins[index].mesh.material.color = color;
 
 		this.rebuildPath();
 	}

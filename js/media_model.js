@@ -5,7 +5,7 @@ var objPaths, mtlPaths, fileId, savedNotes = [],
 	helpOverlay, helpPrompt, 
 	viewport, distancesLayer,
 	controls, guiControls, leftButtons, centerIcon, rightButtons,
-	URLButton, saveNoteButton, loadNoteButton, colorButton, modeButton, addNoteButton, fsButton,
+	URLButton, saveNoteButton, loadNoteButton, colorButton, modeButton, editNoteButton, fsButton,
 	wrapper = document.createElement('div'),
 	defaultWindow = {width: 800, height: 600},
 	windowWidth, windowHeight, windowHalfX, windowHalfY,
@@ -50,15 +50,20 @@ var PinHandler = function(){
 	var cursor = new THREE.Vector3( model.position.x, model.position.y, model.position.y );
 	var color = new THREE.Color();
 	// establish another pin, to follow the cursor and represent where the pins will appear
-	var pin = new THREE.Mesh( protopin.geometry, new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) );
-	scene.add( pin );
+	var pin = { 
+		mesh:new THREE.Mesh( protopin.geometry, new THREE.MeshLambertMaterial( { color : 0xFF00FF } ) ),
+		cursorPos: new THREE.Vector3(),
+		up: new THREE.Vector3()
+	}
+	scene.add( pin.mesh );
 	// a small positional light that will hug our cursor and approach the model
 	var pl = new THREE.PointLight( 0xffffff, 1, 1000 );
-	pin.add( pl );
+	pin.mesh.add( pl );
 	pl.position.y = -20;
-	var  path, grabbed, up;
-	var target = { index: 0, mesh: new THREE.Mesh(), path: null, up: new THREE.Vector3()};
+	var  path, grabbed, up, moving = false;
+	var target = { index: 0, pin: null, path: null, up: new THREE.Vector3()};
 	return{
+		moving: moving,
 		target: target,
 		cursor: cursor,
 		color: color,
@@ -68,15 +73,15 @@ var PinHandler = function(){
 			centerIcon.style.backgroundColor = '#'+path.color.getHexString();
 			this.path = path;
 			this.color = path.color;
-			this.pin.material.color = this.color;
+			//this.pin.mesh.material.color = this.color;
 			centerIcon.innerHTML = path.typeName();
 		},
 		setObject:function(path, index){
 			//selectedObject.scale.set(1.6, 1.6, 1.6);
 			this.target.path = path;
 			this.target.index = index
-			this.target.mesh = path.pins[index].mesh;
-			this.target.up.copy(path.pins[index].up);
+			this.target.pin = path.pins[index];
+			//this.target.up.copy(path.pins[index].up);
 			//this.color = path.color;
 			//this.mesh.scale.set(1.6, 1.6, 1.6);
 			//domObject = document.getElementById(this.object.name);
@@ -107,7 +112,7 @@ var PinHandler = function(){
 			}
 			else if (pinIntersects.length > 0
 				&& (modelIntersects == 0 || modelIntersects[0].point.distanceTo(camera.position) > pinIntersects[0].point.distanceTo(camera.position))) {
-				this.pin.visible = false;
+				this.pin.mesh.visible = false;
 				this.setObject(paths[i], pinIntersects[0].object.id);
 					//function(e){ jQuery.grep(paths[i].pins, return e.mesh.id === pinIntersects[0].object.id; }));
 				highlighted = true;
@@ -117,28 +122,31 @@ var PinHandler = function(){
 				ph.clear();
 			}
 
-			if(this.target.mesh)
+			if(this.target.pin)
 				if(this.grabbed){
 					for(var i=0;i<paths.length;i++){
-						if(paths[i].color == this.target.mesh.material.color)
+						if(paths[i].color.getHexString() === this.target.pin.mesh.material.color.getHexString())
 							this.setPath(paths[i]);
 					}
 					//this.pin.material.color = this.path.color;
 					//this.target.index = index
 					//this.target.mesh = path.pins[index].mesh;
 					//this.target.up.copy(path.pins[index].up);
-					orientPin(this.target.mesh, this.cursor);
-					//this.target.mesh.position.set(this.cursor.x, this.cursor.y, this.cursor.z);
-					this.path.rebuildPath();
+					if(this.moving){
+						orientPin(this.target.pin, this.cursor);
+						//this.target.mesh.position.set(this.cursor.x, this.cursor.y, this.cursor.z);
+						this.path.rebuildPath();
+						this.moving = false;
+					}
 				}
-				else{//console.log("spin");
-					rotateAroundWorldAxis(this.target.mesh, this.target.up, 0.05);
+				else{//console.log('spin');
+					rotateAroundWorldAxis(this.target.pin.mesh, this.target.pin.up, 0.05);
 				}
 		},
 		clear:function(){
 			if(!this.grabbed){
-				this.pin.visible = true;
-				return (this.target.mesh = null);
+				this.pin.mesh.visible = true;
+				return (this.target.pin = null);
 			}
 		}
 	}
@@ -189,12 +197,13 @@ var Load = function(modifiedFilesExist){
 	};
 };
 
-var QualityHandler = function(modObjs, modMtls){
-	var mtlLoad = new Load(modObjs), objLoad = new Load(modMtls), fpsAvg = new FPSAvg(100);
+var QualityHandler = function(modObjs, modMtls, modNmls){
+	var mtlLoad = new Load(modObjs), objLoad = new Load(modMtls), nmlLoad = new Load(modNmls), fpsAvg = new FPSAvg(100);
 	var material, object;
 	return{
 		objLoad: objLoad,
 		mtlLoad: mtlLoad,
+		nmlLoad: nmlLoad,
 		update:function(){
 			if(fpsAvg.update()>15){
 				if(!objLoad.loading && objLoad.next().path) {
@@ -238,15 +247,26 @@ var QualityHandler = function(modObjs, modMtls){
 					console.log('FPS is stable, attempting to download ' + mtlLoad.next().name + ' quality material');
 					mtlLoad.loading = true;
 					var result = THREE.ImageUtils.loadTexture(mtlLoad.next().path.replace('.mtl', '.jpg'), {}, function() {
-						console.log('Successfully loaded ' + objLoad.next().name + ' quality material');
+						console.log('Successfully loaded ' + mtlLoad.next().name + ' quality material');
 						model.material.map = result;
+						model.material.map.anisotropy = renderer.getMaxAnisotropy();
+						console.log('Enabled anisotropy x' + renderer.getMaxAnisotropy() + ', maximum for this renderer');
 						model.material.needsUpdate = true;
 						console.log('Swapped for ' + mtlLoad.next().name + ' quality material');
 						mtlLoad.loading = false;
 						mtlLoad.quality = QUALITY[mtlLoad.quality.value+1];
-						model.material.map.anisotropy = renderer.getMaxAnisotropy();
-						model.material.map.needsUpdate = true;
-						console.log('Enabled anisotropy x' + renderer.getMaxAnisotropy() + ', maximum for this renderer');
+					});
+				}
+				if(!nmlLoad.loading && nmlLoad.next().path) {
+					console.log('FPS is stable, attempting to download ' + nmlLoad.next().name + ' quality normal map');
+					nmlLoad.loading = true;
+					var result = THREE.ImageUtils.loadTexture(nmlLoad.next().path, {}, function() {
+						console.log('Successfully loaded ' + nmlLoad.next().name + ' quality normal map');
+						model.material.normalMap = result;
+						model.material.needsUpdate = true;
+						console.log('Swapped for ' + nmlLoad.next().name + ' quality normal map');
+						nmlLoad.loading = false;
+						nmlLoad.quality = QUALITY[nmlLoad.quality.value+1];
 					});
 				}
 			}
@@ -297,15 +317,16 @@ function init(){
 	loadNoteButton = document.createElement( 'button' );
 	loadNoteButton.className = 'media-model-control-button';
 	loadNoteButton.id = 'media-model-load-note-button';
-	loadNoteButton.innerHTML = 'Load note from server';
+	loadNoteButton.innerHTML = 'Load annotation from server';
 	leftButtons.appendChild(loadNoteButton);
 
+/*
 	saveNoteButton = document.createElement( 'button' );
 	saveNoteButton.className = 'media-model-control-button';
 	saveNoteButton.id = 'media-model-save-note-button';
 	saveNoteButton.innerHTML = 'Save note to server';
 	leftButtons.appendChild(saveNoteButton);
-
+*/
 	colorButton = document.createElement( 'button' );
 	colorButton.className = 'media-model-control-button';
 	colorButton.id = 'media-model-color-button';
@@ -318,11 +339,11 @@ function init(){
 	modeButton.innerHTML = 'Switch mode';
 	rightButtons.appendChild(modeButton);
 	
-	addNoteButton = document.createElement( 'button' );
-	addNoteButton.className = 'media-model-control-button';
-	addNoteButton.id = 'media-model-add-note-button';
-	addNoteButton.innerHTML = 'Add note to current';
-	rightButtons.appendChild(addNoteButton);
+	editNoteButton = document.createElement( 'button' );
+	editNoteButton.className = 'media-model-control-button';
+	editNoteButton.id = 'media-model-edit-note-button';
+	editNoteButton.innerHTML = 'Save/edit annotation';
+	rightButtons.appendChild(editNoteButton);
 
 	fsButton = document.createElement( 'button' );
 	fsButton.className = 'media-model-control-button';
@@ -330,7 +351,7 @@ function init(){
 	fsButton.innerHTML = 'Fullscreen';
 	rightButtons.appendChild(fsButton);
 
-//modeButton, addNoteButton, fsButton,
+//modeButton, editNoteButton, fsButton,
 	viewport.appendChild( helpOverlay );
 	viewport.appendChild( helpPrompt );
 	wrapper.appendChild( viewport );
@@ -397,7 +418,7 @@ function init(){
 			controls = new THREE.MediaModelControls( camera, viewport );
 			controls.addEventListener( 'change', render, false);	
 
-			qh = new QualityHandler(objPaths.low, mtlPaths.low);
+			qh = new QualityHandler(objPaths.low, mtlPaths.low, nmlPaths.default);
 			qh.mtlLoad.default.path = mtlPaths.default;
 			qh.mtlLoad.low.path = mtlPaths.low;
 			qh.mtlLoad.med.path = mtlPaths.med;
@@ -406,6 +427,10 @@ function init(){
 			qh.objLoad.low.path = objPaths.low;
 			//qh.objLoad.med.path = objPaths.med;
 			//qh.objLoad.high.path = objPaths.high;
+			qh.nmlLoad.default.path = nmlPaths.default;
+			qh.nmlLoad.low.path = nmlPaths.low;
+			qh.nmlLoad.med.path = nmlPaths.med;
+			qh.nmlLoad.high.path = nmlPaths.high;
 
 			ph = new PinHandler();
 			paths.push(new THREE.MediaModelPath(colorChooser()));
@@ -446,17 +471,7 @@ function init(){
 	container.appendChild(modalMessage);
 } // end init
 
-var powerswitch = false;
 function animate() {
-	if(!powerswitch && fileId==='26' && qh && qh.mtlLoad.quality.name === 'high' && model.material.map){
-		powerswitch = true;
-		var result = THREE.ImageUtils.loadTexture('https://media-dev.as.uky.edu/media-dev3/sites/default/files/Chads/Chad217_normaltest_normal.png', {}, function() {
-			console.log('Successfully loaded test normal map material');
-			model.material.normalMap = result;
-			model.material.needsUpdate = true;
-			console.log('Swapped for test normal map material');
-		});
-	}
 	if(controls) controls.update();
 	requestAnimationFrame( animate );
 	render();
@@ -508,18 +523,20 @@ function orientPin(pin, location){
 			closestFaceIndex = i;
 	}
 	// move pin to our cursor's location
-	pin.position.copy( location );
+	pin.mesh.position.copy( location );
 	var pinUp = new THREE.Vector3();
 	// begin our up vector as a copy of the closest face's normal
 	pinUp.copy( model.geometry.faces[closestFaceIndex].normal );
 	// we cross the up vector with -1,0,0 so the pin points in the direction we want it to (on to the model)
+	pin.up.copy(pinUp);
 
 	pinUp.multiplyScalar( protopin.geometry.boundingSphere.radius/2 );
 	// and add it to the pin's position
-	pin.position.add( pinUp );
+	pin.mesh.position.add( pinUp );
 
-	pin.lookAt( location );
-	pin.rotation.x -= Math.PI/2;
+	pin.mesh.lookAt( location );
+	pin.mesh.rotation.x -= Math.PI/2;
+	pin.cursorPos.copy( location );
 	return pinUp;
 }
 
@@ -558,19 +575,19 @@ jQuery.fn.extend({
 
 function colorName(color) {
 	if(color === paths[0].color)
-		return "RED";
+		return 'RED';
 	else if(color === paths[1].color)
-		return "ORANGE";
+		return 'ORANGE';
 	else if(color === paths[2].color)
-		return "YELLOW";
+		return 'YELLOW';
 	else if(color === paths[3].color)
-		return "GREEN";
+		return 'GREEN';
 	else if(color === paths[4].color)
-		return "BLUE";
+		return 'BLUE';
 	else if(color === paths[5].color)
-		return "INDIGO";
+		return 'INDIGO';
 	else if(color === paths[6].color)
-		return "VIOLET";
+		return 'VIOLET';
 }
 
 function colorChooser() {
@@ -615,10 +632,10 @@ function loadURLdata() {
 		return;
 	do{
 		pathType = pValues[i].substr(pValues[i].indexOf('-')+1, 1);
-		//console.log("YEAH"+pathType);
+		//console.log('YEAH'+pathType);
 		pValues[i] = pValues[i].substr(('paths['+index+'-'+pathType+']=').length);
 		do{
-			console.log(""+parseFloat(pValues[i])+","+parseFloat(pValues[i+1])+","+parseFloat(pValues[i+2])+"");
+			console.log(''+parseFloat(pValues[i])+','+parseFloat(pValues[i+1])+','+parseFloat(pValues[i+2])+'');
 			paths[index].addPin(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
 			i+=3;
 		}while(i<pValues.length && pValues[i].indexOf('paths') )
@@ -651,8 +668,27 @@ function generateURL() {
 }
 
 function saveNote(formResults) {
-	var urlData = generateURL().replace('cam=', '');
-	urlData = urlData.substr(urlData.indexOf('?')+1).split('pins=');
+	/*
+
+	          saveNote({
+	            title: noteTitle.val(),
+	            note: noteText.val(),
+	            path: pathSelect.val()
+	          });	
+*/
+
+	var cam = "", pins = "", pathIndex = formResults.pathIndex;
+	for(var i=0; i<16; i++) {
+		cam += camera.matrixWorld.elements[i].toPrecision(7) + ',';
+	}
+
+	for(var j=0; j<paths[pathIndex].pins.length; j++) {
+		pins += paths[pathIndex].pins[j].cursorPos.x.toPrecision(7) + ','
+			+ paths[pathIndex].pins[j].cursorPos.y.toPrecision(7) + ',' 
+			+ paths[pathIndex].pins[j].cursorPos.z.toPrecision(7) + ',';
+	}
+
+	return URL;
 
 	fid = location.pathname.substr(location.pathname.lastIndexOf('/')+1);
 
@@ -660,8 +696,8 @@ function saveNote(formResults) {
 			fid: fid,
 			title: formResults.title,
 			text: formResults.note,
-			cam: (formResults.cam ? urlData[0] : null),
-			pins: (formResults.pins ? urlData[1] : null),
+			cam: urlData[0],
+			pins: urlData[1],
 	};
 	console.log(data);
 
@@ -716,9 +752,10 @@ function media_model_append_saved_note(title, text, cam, pins, noteid){
 }
 
 
-function media_model_viewer(fid, oPaths, mPaths){
+function media_model_viewer(fid, oPaths, mPaths, nPaths){
 	mtlPaths = eval(mPaths);
 	objPaths = eval(oPaths);
+	nmlPaths = eval(nPaths);
 	fileId = fid;
 	init();
 	animate();
@@ -777,27 +814,28 @@ function resetWindow(w, h){
 	windowHalfY = windowHeight / 2;
 }
 
-function saveNoteMenu(){
-	controls.toggleModal(true);
+function editNoteMenu(){
 	var pathSelect = document.getElementById( 'media-model-path-select' );
 	for(var i=0;i<paths.length;i++){
 		if(paths[i].pins.length<1) continue;
 		var pathDomElement = document.createElement( 'option' );
 		pathDomElement.value = i;
 		pathDomElement.className = 'media-model-path-selector';
-		pathDomElement.innerHTML = paths[i].typeName() + '(' + paths[i].pins.length + ')';
-		pathDomElement.style.backgroundColor = '#'+paths[i].color.getHexString();
+		pathDomElement.innerHTML = colorName(paths[i].color) + ' ' + paths[i].typeName() + '(' + paths[i].pins.length + ')';
+		//pathDomElement.style.backgroundColor = '#'+paths[i].color.getHexString();
 		pathSelect.appendChild(pathDomElement);
+		if(paths[i] === ph.path){
+			jQuery(pathSelect).val(i);
+			jQuery('#media-model-edit-note-text').val(paths[i].note);
+			jQuery('#media-model-edit-note-title').val(paths[i].title);
+		}
 	}
-  	jQuery( '#media-model-save-note-form' ).dialog( 'open' );
+	controls.toggleModal(true);
+    //label = jQuery('label[for=media-model-edit-note-text]');
+    //label.text('Annotate the '+colorName(ph.path.color)+' '+ph.path.typeName()+', or just the model');
+    jQuery( '#media-model-edit-note-form').dialog( 'open' );
 }
 
-function addNoteMenu(){
-	controls.toggleModal(true);
-    label = jQuery("label[for=media-model-add-note-text]");
-    label.text('Annotate the '+colorName(ph.path.color)+' '+ph.path.typeName()+', or just the model');
-    jQuery( '#media-model-add-note-form').dialog( 'open' );
-}
 
 function loadNoteMenu(){
 	controls.toggleModal(true);
@@ -844,83 +882,105 @@ jQuery(document).ready(function(){
 		return false
 	});
 
-    var noteTitle = jQuery("#noteTitle"),
-    	noteText = jQuery('#media-model-add-note-text'),
-        pathSelect = jQuery("#media-model-path-select"),
-        cam = jQuery("#cam"),
-        pins = jQuery("#pins");
-    jQuery( "#media-model-load-note-form" ).dialog({
+   var noteTitle = jQuery('#media-model-edit-note-title'),
+    	noteText = jQuery('#media-model-edit-note-text'),
+     	pathSelect = jQuery('#media-model-path-select'),
+        cam = jQuery('#media-model-edit-cam'),
+        pins = jQuery('#media-model-edit-pins'),
+        toServer = jQuery('#media-model-edit-to-server');
+    jQuery( '#media-model-load-note-form' ).dialog({
       autoOpen: false,
       height: 400,
       width: 600,
       modal: true,
       buttons: {
-        "Load": function() {
-          if(jQuery("#media-model-load-notes-contains").text()!="No extra data")
-            loadNote(savedNotes[jQuery("#media-model-load-notes-index").attr("class")]);
-          jQuery( this ).dialog( "close" );
+        'Load': function() {
+          if(jQuery('#media-model-load-notes-contains').text()!='No extra data')
+            loadNote(savedNotes[jQuery('#media-model-load-notes-index').attr('class')]);
+          jQuery( this ).dialog( 'close' );
         },
         Cancel: function() {
-          jQuery( this ).dialog( "close" );
+          jQuery( this ).dialog( 'close' );
         }
       },
       close: function() {
 		controls.toggleModal(false);
       }
-      });   
-    jQuery( "#media-model-add-note-form" ).dialog({
+      });  
+    jQuery( '#media-model-edit-note-form' ).dialog({
       autoOpen: false,
       height: 400,
       width: 600,
       modal: true,
       buttons: {
-        "Save and continue": function() {
+        'Save and continue': function() {
+        	if(toServer.is(':checked')){
+	          saveNote({
+	            title: noteTitle.val(),
+	            note: noteText.val(),
+	            pathIndex: pathSelect.val()
+	          });	
+        	}
           ph.path.note = noteText.val();
+          jQuery( this ).dialog( 'close' );
         },
         Cancel: function() {
-          jQuery( this ).dialog( "close" );
+          jQuery( this ).dialog( 'close' );
         }
       },
       close: function() {
-      	//noteText.val("");
+        noteText.val('');
+        noteTitle.val('');
+      	//noteText.val('');
 		controls.toggleModal(false);
       }
       });
-      jQuery( "#media-model-save-note-form" ).dialog({
+    jQuery('#media-model-path-select').change(
+    	function(){
+    		var pathIndex = jQuery(this).val();
+			jQuery('#media-model-edit-note-text').val(paths[pathIndex].note);
+			jQuery('#media-model-edit-note-title').val(paths[pathIndex].title);
+    	}
+    );
+    /*
+      jQuery( '#media-model-save-note-form' ).dialog({
         autoOpen: false,
         height: 400,
         width: 600,
         modal: true,
         buttons: {
-          "Add note": function() {
-              //allFields.removeClass( "ui-state-error" );
+          'Save and continue': function() {
               saveNote({
                 title: noteTitle.val(),
-                note: paths[i].note(),
+                note: noteText.val(),
                 path: pathSelect.val(),
-                cam: cam.is(":checked"),
-                pins: pins.is(":checked")
+                cam: cam.is(':checked'),
+                pins: pins.is(':checked')
               });
-              noteTitle.val("");
-                            //cam.prop("checked", false);
-              //pins.prop("checked", false);
-              jQuery( this ).dialog( "close" );
+              noteText.val('');
+              noteTitle.val('');
+                            //cam.prop('checked', false);
+              //pins.prop('checked', false);
+              jQuery( this ).dialog( 'close' );
           },
           Cancel: function() {
-            jQuery( this ).dialog( "close" );
+            jQuery( this ).dialog( 'close' );
           }
         },
         close: function() {
+        	jQuery(cam).attr('checked', true);
+        	jQuery(pins).attr('checked', true);
+            noteTitle.val('');
 			var pathSelect = document.getElementById( 'media-model-path-select' );
 			var pathCount = pathSelect.children.length-1;
 			for(var i=0;i<pathCount;i++){
 				pathSelect.removeChild(pathSelect.lastChild);
 			}
 		controls.toggleModal(false);
-        	//console.log("Submitted?");
-          //allFields.val( "" ).removeClass( "ui-state-error" );
+        	//console.log('Submitted?');
+          //allFields.val( '' ).removeClass( 'ui-state-error' );
         }
-      });
+      });*/
 /*
 	jQuery('.media-model-control-button').bind('mouseout', function(){
 	  jQuery(viewport).trigger('mouseout');

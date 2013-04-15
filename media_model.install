@@ -63,7 +63,7 @@ function media_model_schema() {
           'size' => 'tiny',
           'not null' => FALSE,
         ),
-        'markers' => array(
+        'pins' => array(
           'description' => 'Point information for note',
           'type' => 'text',
           'size' => 'medium',

@@ -10,7 +10,8 @@ THREE.MediaModelPath = function(c){
 		distance = 0,
 
 		lineRibbon = new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: color, side: THREE.DoubleSide, vertexColors: true } )),
-		note = "";
+		note = "",
+		title = "";
 
 	
 	var TYPE = { POINTS: 0, LINE: 1, POLYGON: 2};
@@ -37,6 +38,8 @@ THREE.MediaModelPath = function(c){
 				return 'POLYGON';
 		}
 	}
+
+	this.title = title;
 	
 	this.note = note;
 
@@ -88,7 +91,7 @@ THREE.MediaModelPath = function(c){
 
 		this.pinRoot.add(this.pins[index].mesh);
 
-		this.pins[index].up = orientPin(this.pins[index].mesh, location);
+		this.pins[index].up = orientPin(this.pins[index], location);
 
 		this.rebuildPath();
 	}

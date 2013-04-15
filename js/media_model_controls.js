@@ -16,7 +16,8 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	// API
 
-	this.center = new THREE.Vector3();
+	var center = new THREE.Vector3();
+	this.center = center;
 
 	this.userRotate = true;
 	this.userRotateSpeed = 1.0;
@@ -45,7 +46,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	var lastPosition = new THREE.Vector3();
 
-	var STATE = { NONE : -1, ROTATE : 0 };
+	var STATE = { NONE : -1, ROTATE : 0};
 	var state = STATE.NONE;
 	var buttonPress = false;
 	var modalActive = false;
@@ -180,7 +181,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	function onMouseDown( event ) {
 		//console.log(event);
 
-		if(event.target.className === "media-model-control-button"){
+		if(event.target.className === 'media-model-control-button'){
 			if(event.target.id === 'media-model-url-button')
   				window.prompt ('Copy this URL:', generateURL());
 			else if(event.target.id === 'media-model-load-note-button')
@@ -191,38 +192,40 @@ THREE.MediaModelControls = function ( object, domElement ) {
         		ph.setPath(paths[(paths.indexOf(ph.path)+1)%colors.length]);
         	else if(event.target.id === 'media-model-mode-button' )
         		ph.path.setType();
-        	else if(event.target.id === 'media-model-add-note-button' )
-        		addNoteMenu();
+        	else if(event.target.id === 'media-model-edit-note-button' )
+        		editNoteMenu();
         	else if(event.target.id === 'media-model-fs-button' )
         		fullscreenToggle();
         	buttonPress = true;
         	return;
 		}
+		if( event.which == 1){
+			if ( event.altKey ) {
+				//console.log('1');
+				if(!rotating)
+					scope.center.copy(ph.pin.mesh.position);
+				//console.log(this.center);
+				event.preventDefault();
 
-		if ( event.button == 0 && event.altKey ) {
-			//console.log("1");
-			event.preventDefault();
-
-			state = STATE.ROTATE;
-
-			rotateStart.set( event.clientX, event.clientY );
-
-		} 
-
-		if( event.which == 1 ){
-			mouse1Down = true;
-			if(ph.target.mesh){
-				ph.grabbed = true;
+				state = STATE.ROTATE;
+				rotating = true;
+				rotateStart.set( event.clientX, event.clientY );
+			} 
+			else if( event.which == 1 ){
+				mouse1Down = true;
+				if(ph.target.pin){
+					ph.grabbed = true;
+				}
+				var newMouseDown = new Date().getTime();
+				// check for double click -- currently if two clicks are within 250ms, we consider it a double click
+				if( newMouseDown - lastMouseDown < 250 ){
+					if(ph.target.pin)
+						ph.path.removePin(ph.target.index);
+					else 
+						ph.path.addPin(ph.cursor);
+				}
+				lastMouseDown =  new Date().getTime();
 			}
-			var newMouseDown = new Date().getTime();
-			// check for double click -- currently if two clicks are within 250ms, we consider it a double click
-			if( newMouseDown - lastMouseDown < 250 ){
-				if(ph.target.mesh)
-					ph.path.removePin(ph.target.index);
-				else 
-					ph.path.addPin(ph.cursor);
-			}
-			lastMouseDown =  new Date().getTime();
 		}
 		//domElement.addEventListener( 'mousemove', onMouseMove, false );
 		//domElement.addEventListener( 'mouseup', onMouseUp, false );
@@ -231,11 +234,14 @@ THREE.MediaModelControls = function ( object, domElement ) {
 
 	var fix = {x: 0, y: 0};
 	function onMouseMove( event ) {
+	//	console.log(this.center);
 		event.preventDefault();
+		if(ph.grabbed)
+			ph.moving = true;
 		if(buttonPress)
 			return;
 		var buttonFix = 0;
-		if(event.target.className.indexOf("media-model-control-button")!==-1){
+		if(event.target.className.indexOf('media-model-control-button')!==-1){
 			fix.x = event.target.offsetLeft;
 			fix.y = event.target.offsetTop;
 		}
@@ -252,19 +258,19 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			scope.rotateUp( 2 * Math.PI * rotateDelta.y / PIXELS_PER_ROUND * scope.userRotateSpeed );
 
 			rotateStart.copy( rotateEnd );
-			rotating = true;
-			this.center = ph.pin.position;
-			return;
+			if ( event.altKey ) 
+				return;
+		}
+		if( rotating && !event.altKey ){
+			rotating = false;
+			state = STATE.NONE;
+			scope.center.copy(new THREE.Vector3(0,0,0));
 		}
 
 		// begin code moved from media_model.js
-		if ( !event.altKey && rotating ) {
-				rotating = false;
-				state = STATE.NONE;
-				this.center = new THREE.Vector3();
-		}
+
 		if( mouse2D.x && mouse2D.y ){
-			//document.body.style.cursor = "none";
+			//document.body.style.cursor = 'none';
 			var dx = mouse2D.x - event.offsetX + fix.x;
 			var dy = mouse2D.y - event.offsetY + fix.y;
 			if( event.which == 1 ){
@@ -274,13 +280,10 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			else if( event.which == 2 ){
 				panCamera(dx, dy);
 			}
-			// don't do anything unless we have a model loaded!
-			if( !rotating ){
-				orientPin( ph.pin, ph.cursor);
-			}
+			orientPin( ph.pin, ph.cursor);
 		}
 		else
-			document.body.style.cursor = "";
+			document.body.style.cursor = '';
 		// update our known 2d/3d mouse coordinates
 		mouse2D.x = event.offsetX + fix.x;
 		mouse2D.y = event.offsetY + fix.y;
@@ -310,7 +313,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 		// we want a direction vector which points inside from the location of the camera
 		var direction = new THREE.Vector3();
 		direction.copy( ph.cursor );
-		// we use model[0] since it seems to contain "most" of the model data
+		// we use model[0] since it seems to contain 'most' of the model data
 		direction.sub( camera.position );
 		if((direction.lengthSq() > 100 || event.wheelDelta < 0)
 		 	&& (direction.lengthSq() < 1000000 || event.wheelDelta > 0)) {
@@ -321,7 +324,7 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	}
 
 	function onKeyDown( event ){
-		//console.log("ON KEY DOWN!");
+		//console.log('ON KEY DOWN!');
 		//console.log(event);
 		if(modalActive) return;
 		switch(event.keyCode){

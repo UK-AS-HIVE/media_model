@@ -61,7 +61,8 @@ function media_model_addnote_set_cam_and_pins() {
     $data['title'],
 		$data['text'],
 		$data['cam']!='null' ? $data['cam'] : '',
-		$data['pins']!='null' ? $data['pins'] : ''
+		$data['pins']!='null' ? $data['pins'] : '',
+    $data['type']
 	);
 	$output = array(
 		'status' => 'success',

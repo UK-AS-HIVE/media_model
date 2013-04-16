@@ -246,9 +246,9 @@ var QualityHandler = function(modObjs, modMtls, modNmls){
 				if(!mtlLoad.loading && mtlLoad.next().path) {
 					console.log('FPS is stable, attempting to download ' + mtlLoad.next().name + ' quality material');
 					mtlLoad.loading = true;
-					var result = THREE.ImageUtils.loadTexture(mtlLoad.next().path.replace('.mtl', '.jpg'), {}, function() {
+					var map = THREE.ImageUtils.loadTexture(mtlLoad.next().path.replace('.mtl', '.jpg'), {}, function() {
 						console.log('Successfully loaded ' + mtlLoad.next().name + ' quality material');
-						model.material.map = result;
+						model.material.map = map;
 						model.material.map.anisotropy = renderer.getMaxAnisotropy();
 						console.log('Enabled anisotropy x' + renderer.getMaxAnisotropy() + ', maximum for this renderer');
 						model.material.needsUpdate = true;
@@ -260,10 +260,9 @@ var QualityHandler = function(modObjs, modMtls, modNmls){
 				if(!nmlLoad.loading && nmlLoad.next().path) {
 					console.log('FPS is stable, attempting to download ' + nmlLoad.next().name + ' quality normal map');
 					nmlLoad.loading = true;
-					var result = THREE.ImageUtils.loadTexture(nmlLoad.next().path, {}, function() {
+					var normalMap = THREE.ImageUtils.loadTexture(nmlLoad.next().path, {}, function() {
 						console.log('Successfully loaded ' + nmlLoad.next().name + ' quality normal map');
-						model.material.normalMap = result;
-						model.material.map = model.material.map;
+						model.material.normalMap = normalMap;
 						model.material.needsUpdate = true;
 						console.log('Swapped for ' + nmlLoad.next().name + ' quality normal map');
 						nmlLoad.loading = false;
@@ -739,12 +738,13 @@ function loadNote(note){
 }
 
 // drupal module interface
-function media_model_append_saved_note(title, text, cam, pins, noteid){
+function media_model_append_saved_note(title, text, cam, pins, type, noteid){
 	savedNotes.push({
 		title: title,
 		text: text,
 		cam: cam,
 		pins: pins,
+		type: type,
 		noteid: noteid
 	});
 }

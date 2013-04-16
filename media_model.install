@@ -11,7 +11,7 @@
 function media_model_install() {
   $types['3dmodel'] = new stdClass();
   $types['3dmodel']->type = '3dmodel';
-  $types['3dmodel']->name = '3dmodel';
+  //$types['3dmodel']->name = '3dmodel';
   $types['3dmodel']->label = "3D Model";
   $types['3dmodel']->base = TRUE;
   $types['3dmodel']->mimetypes = array('/^3dmodel/');
@@ -67,6 +67,12 @@ function media_model_schema() {
           'description' => 'Point information for note',
           'type' => 'text',
           'size' => 'medium',
+          'not null' => FALSE,
+        ),
+        'type' => array(
+          'description' => 'Type name for set of pins',
+          'type' => 'text',
+          'size' => 'tiny',
           'not null' => FALSE,
         ),
         'created' => array(

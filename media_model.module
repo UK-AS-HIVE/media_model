@@ -271,6 +271,7 @@ or to make changes to your workspace.
               $note->text . '","' .
               $note->cam . '","' .
               $note->pins . '","' .
+              $note->type . '","' .
               $note->noteid .
             '");
         ', 'inline');
@@ -280,7 +281,7 @@ or to make changes to your workspace.
   return $output;
 }
 
-function media_model_create_note($fid, $title, $text, $cam, $pins) {
+function media_model_create_note($fid, $title, $text, $cam, $pins, $type) {
   global $user;
 
   // Create derivative object.
@@ -291,6 +292,7 @@ function media_model_create_note($fid, $title, $text, $cam, $pins) {
   $note->text = $text;
   $note->cam = $cam;
   $note->pins = $pins;
+  $note->type = $type;
   $note->created = time();
   $note->changed = time();
 

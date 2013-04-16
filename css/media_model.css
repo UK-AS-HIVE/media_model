@@ -243,14 +243,9 @@ a.media-model-saved-notes-selector {
     display: none;
 	overflow: hidden;
 }
-#media-model-edit-note-form-left{
-	float: left;
-}
-#media-model-edit-note-form-right{
-	float:right;
-	width: 60%;
-	height:270px;
-	background-color: #e0e0e0;
+#media-model-edit-note-form-inner{
+	width: 98%;
+	height:500px;
     padding: 5px;
 	-moz-border-radius:4px;
 	-webkit-border-radius:4px;
@@ -258,12 +253,16 @@ a.media-model-saved-notes-selector {
 }
 #media-model-edit-note-text{
     height:240px;
-    width: 335px;
+    width: 98%;
 }
 
 #media-model-edit-note-form{
     overflow: hidden;
+    padding: 0px;
 }
 #media-model-edit-fieldset{
 	padding: 5px;
+}
+#media-model-edit-note-title{
+    width: 98%;
 }

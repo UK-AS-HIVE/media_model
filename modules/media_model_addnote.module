@@ -4,8 +4,8 @@ function media_model_addnote_menu() {
   $items = array();
 
   $items['addnote/add'] = array(
-  	'title' => t('Setting server side knowledge of cam and markers'),
-  	'page callback' => 'media_model_addnote_set_cam_and_markers',
+  	'title' => t('Setting server side knowledge of cam and pins'),
+  	'page callback' => 'media_model_addnote_set_cam_and_pins',
     'access callback' => TRUE,
   	'type' => MENU_CALLBACK,
   );
@@ -53,15 +53,15 @@ function media_model_addnote_page() {
   return $output;
 }
 */
-function media_model_addnote_set_cam_and_markers() {
+function media_model_addnote_set_cam_and_pins() {
 	$data = $_POST;
-	//($file, $notes, $cam, $markers
+	//($file, $notes, $cam, $pins
 	$saved = media_model_create_note(
 		intval($data['fid']),
     $data['title'],
 		$data['text'],
 		$data['cam']!='null' ? $data['cam'] : '',
-		$data['markers']!='null' ? $data['markers'] : ''
+		$data['pins']!='null' ? $data['pins'] : ''
 	);
 	$output = array(
 		'status' => 'success',
@@ -123,9 +123,9 @@ function media_model_addnote_form($form, &$form_state) {
   	'#title' => t('Save camera position'),
   );
 
-  $form['markers'] = array(
+  $form['pins'] = array(
   	'#type' => 'checkbox',
-  	'#title' => t('Save marker positions'),
+  	'#title' => t('Save pin positions'),
   );
 
   $form['submit'] = array(

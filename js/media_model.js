@@ -1,5 +1,5 @@
-var objPaths, mtlPaths, fileId, savedNotes = [], 
-	qh, ph,
+var objPaths, mtlPaths, fileId, savedNotes = [],
+	qh, ph, pinCount = 0,
 	paths = [],
 	modelLoaded = false, highlighted = false, rotating = false,
 	helpOverlay, helpPrompt, 
@@ -73,7 +73,7 @@ var PinHandler = function(){
 			centerIcon.style.backgroundColor = '#'+path.color.getHexString();
 			this.path = path;
 			this.color = path.color;
-			//this.pin.mesh.material.color = this.color;
+			this.pin.mesh.material.color = this.color;
 			centerIcon.innerHTML = path.typeName();
 		},
 		setObject:function(path, index){
@@ -263,6 +263,7 @@ var QualityHandler = function(modObjs, modMtls, modNmls){
 					var result = THREE.ImageUtils.loadTexture(nmlLoad.next().path, {}, function() {
 						console.log('Successfully loaded ' + nmlLoad.next().name + ' quality normal map');
 						model.material.normalMap = result;
+						model.material.map = model.material.map;
 						model.material.needsUpdate = true;
 						console.log('Swapped for ' + nmlLoad.next().name + ' quality normal map');
 						nmlLoad.loading = false;
@@ -688,16 +689,15 @@ function saveNote(formResults) {
 			+ paths[pathIndex].pins[j].cursorPos.z.toPrecision(7) + ',';
 	}
 
-	return URL;
-
 	fid = location.pathname.substr(location.pathname.lastIndexOf('/')+1);
 
 	var data = {
 			fid: fid,
 			title: formResults.title,
 			text: formResults.note,
-			cam: urlData[0],
-			pins: urlData[1],
+			cam: cam,
+			pins: pins,
+			type: paths[pathIndex].typeName()
 	};
 	console.log(data);
 
@@ -721,6 +721,7 @@ function loadNote(note){
 	var loadedCameraMatrix = new THREE.Matrix4(),
 		cam = note.cam.split(','),
 		pins = note.pins.split(',');
+
 	if(note.cam != '') {
 		for(var i=0; i<cam.length; i++){
 			loadedCameraMatrix.elements[i]=cam[i];
@@ -728,10 +729,7 @@ function loadNote(note){
 		camera.matrix.identity();
 		camera.applyMatrix(loadedCameraMatrix);
 	}
-	for(var i=0; i<colors.length; i++) {
-		if(!colorAvailable[i])
-			removePin(colors[i].toString(16));
-	}
+
 
 	if(note.pins != '') {
 		for(var i=0; i<pins.length; i+=3) {
@@ -815,6 +813,10 @@ function resetWindow(w, h){
 }
 
 function editNoteMenu(){
+	if(pinCount<1){
+		alert('Please mark at least one point for reference');
+		return;
+	}
 	var pathSelect = document.getElementById( 'media-model-path-select' );
 	for(var i=0;i<paths.length;i++){
 		if(paths[i].pins.length<1) continue;
@@ -843,7 +845,7 @@ function loadNoteMenu(){
 }
 
 jQuery(document).ready(function(){
-
+ 	jQuery('#media-model-edit-note-button').attr('disabled', 'disabled');
 	for(var i=0; i<savedNotes.length; i++){
 		var li = document.createElement( 'li' );
 		var id = 'media-model-note-' + i;
@@ -881,13 +883,15 @@ jQuery(document).ready(function(){
 	jQuery('#media-model-saved-notes-selector').mouseup(function() {
 		return false
 	});
+	//jQuery('#media-model-edit-note-form').validate();
 
    var noteTitle = jQuery('#media-model-edit-note-title'),
     	noteText = jQuery('#media-model-edit-note-text'),
      	pathSelect = jQuery('#media-model-path-select'),
         cam = jQuery('#media-model-edit-cam'),
         pins = jQuery('#media-model-edit-pins'),
-        toServer = jQuery('#media-model-edit-to-server');
+        toServer = jQuery('#media-model-edit-to-server'),
+        pathSelect = jQuery( '#media-model-path-select' );
     jQuery( '#media-model-load-note-form' ).dialog({
       autoOpen: false,
       height: 400,
@@ -909,30 +913,38 @@ jQuery(document).ready(function(){
       });  
     jQuery( '#media-model-edit-note-form' ).dialog({
       autoOpen: false,
-      height: 400,
+      height: 600,
       width: 600,
       modal: true,
       buttons: {
         'Save and continue': function() {
-        	if(toServer.is(':checked')){
-	          saveNote({
-	            title: noteTitle.val(),
-	            note: noteText.val(),
-	            pathIndex: pathSelect.val()
-	          });	
+        	if(noteText.val()!=""){
+	        	if(toServer.is(':checked')){
+		          saveNote({
+		            title: noteTitle.val(),
+		            note: noteText.val(),
+		            pathIndex: pathSelect.val()
+		          });	
+	        	}
+	          ph.path.note = noteText.val();
+	          jQuery( this ).dialog( 'close' );
         	}
-          ph.path.note = noteText.val();
-          jQuery( this ).dialog( 'close' );
+        	else{
+        		jQuery('label[for=media-model-edit-note-text]').css('color', 'red');
+        		return false;
+        	}
         },
         Cancel: function() {
           jQuery( this ).dialog( 'close' );
         }
       },
       close: function() {
+        		jQuery('label[for=media-model-edit-note-text]').css('color', 'black');
         noteText.val('');
         noteTitle.val('');
       	//noteText.val('');
 		controls.toggleModal(false);
+		pathSelect.empty();
       }
       });
     jQuery('#media-model-path-select').change(

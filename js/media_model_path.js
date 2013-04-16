@@ -82,6 +82,7 @@ THREE.MediaModelPath = function(c){
 	}
 
 	this.addPin = function(location) {
+		pinCount++;
 		this.pins.push( { 	
 				mesh: new THREE.Mesh(protopin.geometry, new THREE.MeshPhongMaterial({color: color})),
 				up: new THREE.Vector3(),
@@ -97,6 +98,7 @@ THREE.MediaModelPath = function(c){
 	}
 
 	this.removePin = function( i ){
+		pinCount--;
 		this.pins.splice(i, 1);
 
 		console.log('Removed pins[' + i + '] from the ' + color.getHexString() + 'set.');

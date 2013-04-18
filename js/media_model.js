@@ -717,6 +717,12 @@ function saveNote(formResults) {
 
 function loadNote(note){
 	console.log(note);
+
+	for(var i=0;i<paths.length;i++){
+		while(paths[i].pins.length>0)
+			paths[i].removePin(0);
+		paths[i].note = '';
+	}
 	var loadedCameraMatrix = new THREE.Matrix4(),
 		cam = note.cam.split(','),
 		pins = note.pins.split(',');
@@ -729,12 +735,14 @@ function loadNote(note){
 		camera.applyMatrix(loadedCameraMatrix);
 	}
 
-
 	if(note.pins != '') {
 		for(var i=0; i<pins.length; i+=3) {
-			addPin(new THREE.Vector3(parseFloat(pins[i]), parseFloat(pins[i+1]), parseFloat(pins[i+2])));
+			paths[0].addPin(new THREE.Vector3(parseFloat(pins[i]), parseFloat(pins[i+1]), parseFloat(pins[i+2])));
 		}
 	}
+
+	paths[0].setType(note.type);
+	paths[0].note = note.text;
 }
 
 // drupal module interface
@@ -840,11 +848,16 @@ function editNoteMenu(){
 
 
 function loadNoteMenu(){
+	if(savedNotes.length<1){
+		alert('No annotations stored on the server');
+		return;
+	}
 	controls.toggleModal(true);
 	jQuery( '#media-model-load-note-form' ).dialog( 'open' );
 }
 
-jQuery(document).ready(function(){
+jQuery(document).ready(function(){;
+
  	jQuery('#media-model-edit-note-button').attr('disabled', 'disabled');
 	for(var i=0; i<savedNotes.length; i++){
 		var li = document.createElement( 'li' );
@@ -954,6 +967,10 @@ jQuery(document).ready(function(){
 			jQuery('#media-model-edit-note-title').val(paths[pathIndex].title);
     	}
     );
+	var warning = document.createElement( 'span' );
+	warning.id = 'media-model-load-note-warning';
+	warning.innerHTML = 'Loading a new note will reset your current workspace.';
+	document.getElementsByClassName("ui-dialog-buttonpane ui-widget-content ui-helper-clearfix")[0].appendChild(warning)
     /*
       jQuery( '#media-model-save-note-form' ).dialog({
         autoOpen: false,

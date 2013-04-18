@@ -93,7 +93,7 @@ For each model intended for use in media_model, some steps should be taken to en
 		Source Mesh [<original_name>.obj]
 		Target Mesh [<original_name>.obj_copy]
 		Color Data Source [Vertex Normal]
-		Max Dist Search [8.6519][2.000]
+		Max Dist Search [<leave as default>][<leave as default>]
 		Texture file [<original_name>_normal.png]
 		Texture width (px) [512, 2048, or 4096 depending on if you are producing high, medium, or low]
 		Texture heigh (px) [512, 2048, or 4096 depending on if you are producing high, medium, or low]

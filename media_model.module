@@ -107,7 +107,7 @@ function media_model_get_materials( $objFileName, $objPath){
 function media_model_get_normals( $objFileName, $objPath ){
   $mmDir = 'public://media_model_files/';
   $objName = str_replace('.obj', '', $objFileName);
-  $basePngPath = $mmDir . $objName . '_normal.png';
+  $basePngPath = str_replace('.obj', '_normal.png', $objPath);
   //dpm(file_create_url($basePngPath));
 
   $types = array(
@@ -183,7 +183,7 @@ function theme_model($variables) {
     </select>
     <label for="media-model-edit-note-text">Annotation (required)</label>
     <textarea name="media-model-edit-note-text" id="media-model-edit-note-text" class="textarea ui-widget-content ui-corner-all"></textarea><br/><br/>
-    <input type="checkbox" name="media-model-edit-to-server" id="media-model-edit-to-server" value="" class="text ui-widget-content ui-corner-all" checked />&nbsp;Save to server
+    <input type="checkbox" name="media-model-edit-to-server" id="media-model-edit-to-server" value="" class="text ui-widget-content ui-corner-all" checked />&nbsp;Save to server<br/><small>Annotations saved to server will be accessible to the public for loading.</small>
   </fieldset>
   </form>
   </div>

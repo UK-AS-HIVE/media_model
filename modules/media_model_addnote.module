@@ -55,6 +55,7 @@ function media_model_addnote_page() {
 */
 function media_model_addnote_set_cam_and_pins() {
 	$data = $_POST;
+
 	//($file, $notes, $cam, $pins
 	$saved = media_model_create_note(
 		intval($data['fid']),
@@ -65,7 +66,7 @@ function media_model_addnote_set_cam_and_pins() {
     $data['type']
 	);
 	$output = array(
-		'status' => 'success',
+		'status' => 'Server recieved message',
 		'sent' => $_POST
 	);
 	drupal_json_output($output);

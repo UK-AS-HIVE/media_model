@@ -1,7 +1,7 @@
 <!DOCTYPE FilterScript>
 <FilterScript>
  <filter name="Quadric Edge Collapse Decimation (with texture)">
-  <Param type="RichInt" value="20000" name="TargetFaceNum"/>
+  <Param type="RichInt" value="200000" name="TargetFaceNum"/>
   <Param type="RichFloat" value="0" name="TargetPerc"/>
   <Param type="RichFloat" value="1" name="QualityThr"/>
   <Param type="RichFloat" value="1" name="Extratcoordw"/>

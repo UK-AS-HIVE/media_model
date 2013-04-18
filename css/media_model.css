@@ -266,3 +266,10 @@ a.media-model-saved-notes-selector {
 #media-model-edit-note-title{
     width: 98%;
 }
+#media-model-load-note-warning{
+    padding: 5px;
+    position: absolute;
+    bottom: 5px;
+    color: red;
+    font-size: 12px;
+}

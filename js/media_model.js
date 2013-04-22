@@ -671,7 +671,7 @@ function generateURL() {
 	for(var i=0; i<paths.length; i++){
 		if(paths[i].pins.length<1) continue;
 		URL += 'paths['+ i + '-'+paths[i].type()+']=';
-		if(paths[i].nid!=='')
+		if(paths[i].nid>-1)
 			URL+='nid-'+paths[i].nid+',';
 		else
 			for(var j=0; j<paths[i].pins.length; j++) {
@@ -740,16 +740,12 @@ function saveNote(formResults) {
 function loadNote(index){
 	note = savedNotes[index];
 	console.log(note);
-	if(!index)
-		for(var i=0;i<paths.length;i++){
-			while(paths[i].pins.length>0)
-				paths[i].removePin(0);
-			paths[i].note = '';
-		}
-	else if(paths[index].pins>0)
-		while(paths[index].pins.length>0)
-			paths[index].removePin(0);
 
+	for(var i=0;i<paths.length;i++){
+		while(paths[i].pins.length>0)
+			paths[i].removePin(0);
+		paths[i].note = '';
+	}
 
 	var loadedCameraMatrix = new THREE.Matrix4(),
 		cam = note.cam.split(','),

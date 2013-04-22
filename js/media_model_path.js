@@ -50,6 +50,8 @@ THREE.MediaModelPath = function(c){
 
 	this.color = color;
 
+	this.nid = nid;
+
 	this.setType = function ( typeName ){
 		if(typeName)
 			type = TYPE[typeName];

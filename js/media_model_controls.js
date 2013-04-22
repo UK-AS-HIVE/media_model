@@ -185,8 +185,8 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			if(event.target.id === 'media-model-url-button')
   				window.prompt ('Copy this URL:', generateURL());
 			else if(event.target.id === 'media-model-load-note-button')
-				loadNoteMenu();
-			else if(event.target.id === 'media-model-save-note-button')
+				loadNoteMenu()
+;			else if(event.target.id === 'media-model-save-note-button')
 				saveNoteMenu();
         	else if(event.target.id === 'media-model-color-button' )
         		ph.setPath(paths[(paths.indexOf(ph.path)+1)%colors.length]);
@@ -200,12 +200,12 @@ THREE.MediaModelControls = function ( object, domElement ) {
         	return;
 		}
 		if( event.which == 1){
+				event.preventDefault();
 			if ( event.altKey ) {
 				//console.log('1');
 				if(!rotating)
 					scope.center.copy(ph.pin.mesh.position);
 				//console.log(this.center);
-				event.preventDefault();
 
 				state = STATE.ROTATE;
 				rotating = true;
@@ -236,6 +236,11 @@ THREE.MediaModelControls = function ( object, domElement ) {
 	function onMouseMove( event ) {
 	//	console.log(this.center);
 		event.preventDefault();
+		if( rotating && !event.altKey ){
+			rotating = false;
+			state = STATE.NONE;
+			scope.center.copy(new THREE.Vector3(0,0,0));
+		}
 		if(ph.grabbed)
 			ph.moving = true;
 		if(buttonPress)
@@ -260,11 +265,6 @@ THREE.MediaModelControls = function ( object, domElement ) {
 			rotateStart.copy( rotateEnd );
 			if ( event.altKey ) 
 				return;
-		}
-		if( rotating && !event.altKey ){
-			rotating = false;
-			state = STATE.NONE;
-			scope.center.copy(new THREE.Vector3(0,0,0));
 		}
 
 		// begin code moved from media_model.js
@@ -298,6 +298,12 @@ THREE.MediaModelControls = function ( object, domElement ) {
 		if(ph.grabbed)
 			ph.grabbed = false;
 
+		if( rotating && !event.altKey ){
+			rotating = false;
+			state = STATE.NONE;
+			scope.center.copy(new THREE.Vector3(0,0,0));
+		}
+		
 		if ( ! scope.userRotate ) return;
 
 		//domElement.removeEventListener( 'mousemove', onMouseMove, false );

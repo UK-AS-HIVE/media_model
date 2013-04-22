@@ -11,7 +11,8 @@ THREE.MediaModelPath = function(c){
 
 		lineRibbon = new THREE.Ribbon( new THREE.Geometry(),  new THREE.MeshBasicMaterial( { color: color, side: THREE.DoubleSide, vertexColors: true } )),
 		note = "",
-		title = "";
+		title = "",
+		nid = -1;
 
 	
 	var TYPE = { POINTS: 0, LINE: 1, POLYGON: 2};

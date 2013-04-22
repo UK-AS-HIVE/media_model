@@ -205,7 +205,9 @@ var QualityHandler = function(modObjs, modMtls, modNmls){
 		mtlLoad: mtlLoad,
 		nmlLoad: nmlLoad,
 		update:function(){
-			if(fpsAvg.update()>15){
+			var fps;
+			if((fps = fpsAvg.update())>15){
+				//console.log(fps);
 				if(!objLoad.loading && objLoad.next().path) {
 					console.log('FPS is stable, attempting to download ' + objLoad.next().name + ' quality model');
 					object = [];
@@ -634,11 +636,22 @@ function loadURLdata() {
 		pathType = pValues[i].substr(pValues[i].indexOf('-')+1, 1);
 		//console.log('YEAH'+pathType);
 		pValues[i] = pValues[i].substr(('paths['+index+'-'+pathType+']=').length);
-		do{
-			console.log(''+parseFloat(pValues[i])+','+parseFloat(pValues[i+1])+','+parseFloat(pValues[i+2])+'');
-			paths[index].addPin(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
-			i+=3;
-		}while(i<pValues.length && pValues[i].indexOf('paths') )
+		if(pValues[i].match(/nid-/g)){
+			var nid = pValues[i].replace(/nid-/g,'');
+			for(var j=0;j<savedNotes.length;j++)
+				if(savedNotes[j].nid = nid){
+					loadNote(j);
+					i++;
+					break;
+				}
+		}
+		else
+			do{
+				//console.log(''+parseFloat(pValues[i])+','+parseFloat(pValues[i+1])+','+parseFloat(pValues[i+2])+'');
+				//if()
+				paths[index].addPin(new THREE.Vector3(parseFloat(pValues[i]), parseFloat(pValues[i+1]), parseFloat(pValues[i+2])));
+				i+=3;
+			}while(i<pValues.length && pValues[i].indexOf('paths') )
 		if(pathType === 'p')
 			paths[index].setType('POINT');
 		else if(pathType === 'l')
@@ -658,13 +671,21 @@ function generateURL() {
 	for(var i=0; i<paths.length; i++){
 		if(paths[i].pins.length<1) continue;
 		URL += 'paths['+ i + '-'+paths[i].type()+']=';
-		for(var j=0; j<paths[i].pins.length; j++) {
-			URL += paths[i].pins[j].cursorPos.x.toPrecision(7) + ','
-				+ paths[i].pins[j].cursorPos.y.toPrecision(7) + ',' 
-				+ paths[i].pins[j].cursorPos.z.toPrecision(7) + ',';
-		}
+		if(paths[i].nid!=='')
+			URL+='nid-'+paths[i].nid+',';
+		else
+			for(var j=0; j<paths[i].pins.length; j++) {
+				URL += paths[i].pins[j].cursorPos.x.toPrecision(7) + ','
+					+ paths[i].pins[j].cursorPos.y.toPrecision(7) + ',' 
+					+ paths[i].pins[j].cursorPos.z.toPrecision(7) + ',';
+			}
 	}
 	return URL;
+	/*
+	var URL = location.origin + location.pathname + '?' + 'notes=';
+	for(var )
+
+	*/
 }
 
 function saveNote(formResults) {
@@ -707,7 +728,8 @@ function saveNote(formResults) {
 		data: data,
 		success: function(data){
 			console.log('Successfully sent add note POST to server');
-			console.log(data.status);
+			console.log(data);
+			paths[pathIndex].nid = parseInt(data.noteid);
 		},
 		complete: function(data){
 			console.log('Completed sending add note POST to server');
@@ -715,14 +737,20 @@ function saveNote(formResults) {
 	});
 }
 
-function loadNote(note){
+function loadNote(index){
+	note = savedNotes[index];
 	console.log(note);
+	if(!index)
+		for(var i=0;i<paths.length;i++){
+			while(paths[i].pins.length>0)
+				paths[i].removePin(0);
+			paths[i].note = '';
+		}
+	else if(paths[index].pins>0)
+		while(paths[index].pins.length>0)
+			paths[index].removePin(0);
 
-	for(var i=0;i<paths.length;i++){
-		while(paths[i].pins.length>0)
-			paths[i].removePin(0);
-		paths[i].note = '';
-	}
+
 	var loadedCameraMatrix = new THREE.Matrix4(),
 		cam = note.cam.split(','),
 		pins = note.pins.split(',');
@@ -736,13 +764,16 @@ function loadNote(note){
 	}
 
 	if(note.pins != '') {
-		for(var i=0; i<pins.length; i+=3) {
+		for(var i=0; i<pins.length-1; i+=3) {
+			console.log(''+parseFloat(pins[i])+','+parseFloat(pins[i+1])+','+parseFloat(pins[i+2])+'');
 			paths[0].addPin(new THREE.Vector3(parseFloat(pins[i]), parseFloat(pins[i+1]), parseFloat(pins[i+2])));
 		}
 	}
 
 	paths[0].setType(note.type);
 	paths[0].note = note.text;
+	paths[0].title = note.title;
+	paths[0].nid = note.noteid;
 }
 
 // drupal module interface
@@ -913,7 +944,7 @@ jQuery(document).ready(function(){;
       buttons: {
         'Load': function() {
           if(jQuery('#media-model-load-notes-contains').text()!='No extra data')
-            loadNote(savedNotes[jQuery('#media-model-load-notes-index').attr('class')]);
+            loadNote(jQuery('#media-model-load-notes-index').attr('class'));
           jQuery( this ).dialog( 'close' );
         },
         Cancel: function() {

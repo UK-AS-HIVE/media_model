@@ -101,6 +101,7 @@ function media_model_schema() {
       'unique keys' => array(
         'title' => array('title'),
         'noteid__source_fid' => array('noteid', 'source_fid'),
+        'unique keys' => array('noteid'),
       ),
       'foreign keys' => array(
         'related_file' => array(

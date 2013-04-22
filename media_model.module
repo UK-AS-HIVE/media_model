@@ -296,7 +296,7 @@ function media_model_create_note($fid, $title, $text, $cam, $pins, $type) {
   $note->created = time();
   $note->changed = time();
 
-  return media_model_note_save($note);
+  return media_model_note_save($note)->noteid;
 }
 
 function media_model_note_save($note){
@@ -329,6 +329,7 @@ function media_model_note_save($note){
     watchdog_exception('media_model_notes', $e);
     throw $e;
   }
+  return $note;
 }
 
 function media_model_notes_load($noteid) {

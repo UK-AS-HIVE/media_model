@@ -66,8 +66,8 @@ function media_model_addnote_set_cam_and_pins() {
     $data['type']
 	);
 	$output = array(
-		'status' => 'Server recieved message',
-		'sent' => $_POST
+		'status' => 'Server created note from information',
+    'noteid' => $saved,
 	);
 	drupal_json_output($output);
 	drupal_exit();

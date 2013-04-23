@@ -40,27 +40,24 @@
 	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
 	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
 	box-shadow:inset 0px 1px 0px 0px #ffffff;
-	background-color:#cecece;
-	-moz-border-radius:6px;
-	-webkit-border-radius:6px;
-	border-radius:6px;
+	background-color:#eeeeee;
+
 	border:1px solid #dcdcdc;
 	display:inline-block;
-	color:#777777;
+	color:#80152a;
 	font-family:Verdana;
-	font-size:10px;
+	font-size:0.7em;
 	font-weight:bold;
-	padding:3px 10px;
+	padding:6px;
 	text-decoration:none;
-	text-shadow:1px 1px 0px #ffffff;
 	text-align:center;
 	z-index: 1001;
-
+    text-transform:uppercase;
 }
 .media-model-control-button:hover {
-    background-color:#eeeeee;
-	text-shadow:2px 2px 0px #ffffff;
-    color:#069cf7;
+    background-color:#80152a;
+	text-shadow:2px 2px 0px #80152a;
+    color:#ffffff;
     text-decoration:none;
 }
 
@@ -244,16 +241,13 @@ a.media-model-saved-notes-selector {
 	overflow: hidden;
 }
 #media-model-edit-note-form-inner{
-	width: 98%;
+	width: 100%;
 	height:500px;
-    padding: 5px;
-	-moz-border-radius:4px;
-	-webkit-border-radius:4px;
-	border-radius:4px;
 }
 #media-model-edit-note-text{
-    height:240px;
-    width: 98%;
+    height:225px;
+    margin: 5px;
+    width: 570px;
 }
 
 #media-model-edit-note-form{
@@ -261,7 +255,21 @@ a.media-model-saved-notes-selector {
     padding: 0px;
 }
 #media-model-edit-fieldset{
-	padding: 5px;
+    margin-left: 5px;
+    margin-right: 5px;
+    background: url('../../../themes/lichfield_theme/images/paperBGwhite.png');
+
+}
+.ui-widget{
+    background: url('../../../themes/lichfield_theme/images/paperBGwhite.png');
+}
+.ui-widget-header{
+    background: url('../../../themes/lichfield_theme/images/paperBGtan.png');
+    color: white;
+    text-transform:uppercase;
+}
+.ui-dialog-buttonpane{
+    background: url('../../../themes/lichfield_theme/images/paperBGtan.png');
 }
 #media-model-edit-note-title{
     width: 98%;

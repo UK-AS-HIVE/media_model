@@ -34,7 +34,7 @@
     width: 930px;
     height: 600px;
 }
-.media-model-control-button {
+.media-model-control-button{
 	opacity: 1;
  	margin: 0 3px 3px 3px;
 	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
@@ -46,15 +46,15 @@
 	display:inline-block;
 	color:#80152a;
 	font-family:Verdana;
-	font-size:0.7em;
-	font-weight:bold;
+	font-size:0.8em;
+	font-weight:normal;
 	padding:6px;
 	text-decoration:none;
 	text-align:center;
 	z-index: 1001;
     text-transform:uppercase;
 }
-.media-model-control-button:hover {
+.media-model-control-button:hover{
     background-color:#80152a;
 	text-shadow:2px 2px 0px #80152a;
     color:#ffffff;
@@ -80,34 +80,34 @@ textarea {
 }
 #media-model-load-note-form {
 	overflow: hidden;
+    background: url('../../../themes/lichfield_theme/images/paperBGwhite.png');
+    padding: 0px;
 }
 #media-model-saved-notes-menu {
 	color: #555;
-	margin: 3px -22px 0 0;
-	width: 143px;
+	width: 165px;
 	position: relative;
-	overflow:auto;
-	height: 270px;
+	overflow: auto;
+	height: 269px;
 	text-align:left;
 	float: left;
 }
 .media-model-saved-notes-submenu{
 	background: #fff;
 	position: absolute;
-	top: -12px;
-	left: -20px;
+	top: 0px;
+	left: 0px;
 	z-index: 100;
 	width: 135px;
-	margin-left: 10px;
+	margin-left: 5px;
 	padding: 0px 0 5px;
-	border-radius: 6px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 #media-model-saved-notes-menu li a {
-	color: #555555;
+	color: #80152a;
 	display: block;
 	font-family: Verdana;
-	font-weight: bold;
+	font-weight: normal;
 	padding: 6px 15px;
 	cursor: pointer;
 	text-decoration:none;
@@ -115,7 +115,7 @@ textarea {
 
 }
 #media-model-saved-notes-menu li a:hover{
-	background:#155FB0;
+	background: #80152a;
 	color: #FFFFFF;
 	text-decoration: none;
 }
@@ -245,39 +245,89 @@ a.media-model-saved-notes-selector {
 	height:500px;
 }
 #media-model-edit-note-text{
-    height:225px;
+    height:252px;
     margin: 5px;
-    width: 570px;
+    width: 560px;
 }
-
 #media-model-edit-note-form{
     overflow: hidden;
     padding: 0px;
+    margin: -1px;
+    width: 605px;
 }
 #media-model-edit-fieldset{
-    margin-left: 5px;
-    margin-right: 5px;
+    margin-left: 0px;
+    margin-top: -13px;
     background: url('../../../themes/lichfield_theme/images/paperBGwhite.png');
-
+    color: #000000 !important;
+    padding: 5px 15px;
+    color: #ffffff;
+    border-radius:0px;
+}
+#media-model-edit-fieldset small{
+    color: #80152a !important;
+    font-weight: bold;
 }
 .ui-widget{
-    background: url('../../../themes/lichfield_theme/images/paperBGwhite.png');
+    border-radius:0px;
+    padding: 0px;
+    border-width: 0px;
+    resize: none;
+    -moz-box-shadow: 0px 5px 5px 5px rgba(0, 0, 0, 0.3);
+    -webkit-box-shadow: 0px 5px 5px 5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0px 5px 5px 5px rgba(0, 0, 0, 0.3);
 }
 .ui-widget-header{
+    font-weight:normal;
     background: url('../../../themes/lichfield_theme/images/paperBGtan.png');
     color: white;
     text-transform:uppercase;
+    border-radius:0px;
+    padding: 0px;
+    margin: -1px;
 }
-.ui-dialog-buttonpane{
+.ui-dialog-buttonpane.ui-widget-content.ui-helper-clearfix {
+    background-color: black;
     background: url('../../../themes/lichfield_theme/images/paperBGtan.png');
+    margin: 0px;
+    width: 578px;
+    height: 60px;
+    font-weight: bold;
 }
 #media-model-edit-note-title{
-    width: 98%;
+    width: 290px;
+}
+label[for=media-model-edit-note-title], label[for=media-model-path-select], label[for=media-model-edit-note-text]{
+    font-weight: normal;
 }
 #media-model-load-note-warning{
     padding: 5px;
     position: absolute;
     bottom: 5px;
-    color: red;
+    color: #80152a;
     font-size: 12px;
+}
+.ui-button{
+	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
+	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
+	box-shadow:inset 0px 1px 0px 0px #ffffff;
+    color:#80152a !important; 
+	border:1px solid #dcdcdc;
+	display:inline-block;
+	font-size:0.7em;
+	text-align:center;
+	z-index: 1001;
+    text-transform:uppercase;
+    height: 48px;
+    right: -10px;
+}
+.ui-button:hover{
+    background:#80152a !important;
+    color:#ffffff !important;
+}
+#media-model-load-notes-title{
+    text-transform: uppercase;
+}
+#media-model-load-notes-preview{
+    padding: 5px 10px;
 }

@@ -260,17 +260,23 @@ or to make changes to your workspace.
   drupal_add_js($mediaPath . '/js/media_model.js', 'file');
 
   drupal_add_js('
-   function init(){
+   function media_model_init(){
     if( Detector.webgl )
       {
-        media_model_viewer("' . $variables['element']['#file']->fid . '", ' . drupal_json_encode($objPaths) . ', ' . drupal_json_encode($mtlPaths) . ', ' . drupal_json_encode($nmlPaths) . ');
+          media_model_viewer("' . $variables['element']['#file']->fid . '", ' . drupal_json_encode($objPaths) . ', ' . drupal_json_encode($mtlPaths) . ', ' . drupal_json_encode($nmlPaths) . ');
+          if( !Detector.fullSupport ){
+            var browserWarning = document.createElement( "div" );
+            browserWarning.id = "media-model-support-warning";
+            browserWarning.innerHTML = "Your browser, " + BrowserDetect.browser + " " + BrowserDetect.version + ", may not support all features.</br>This application runs best on Chrome 18.0+, available free <a href=\'https://www.google.com/intl/en/chrome/browser/\'>here.</a>";
+            document.getElementById("media-model-viewport").appendChild(browserWarning);
+          }
       }
       else
       {
-        Detector.addGetWebGLMessage();
+        Detector.addGetWebGLMessage({id: "media-model-webgl-error", parent: document.getElementById( "file-".concat(' . $variables['element']['#file']->fid . ') )});
       }
    }
-   window.onload = init;
+   window.onload = media_model_init;
    ', 'inline');
 
   if($variables['element']['#file']->media_model_notes['has_notes']) {

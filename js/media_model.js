@@ -289,6 +289,7 @@ function init(){
 
 	helpOverlay = document.getElementsByClassName('media-model-help-overlay')[0];
 	helpPrompt = document.getElementsByClassName('media-model-help-prompt')[0];
+	helpPrompt.style.display = "inline";
 
 
 	guiControls = document.createElement( 'div' );
@@ -850,6 +851,7 @@ function resetWindow(w, h){
 }
 
 function editNoteMenu(){
+	jQuery("#media-model-edit-note-form-inner").show();
 	if(pinCount<1){
 		alert('Please mark at least one point for reference');
 		return;

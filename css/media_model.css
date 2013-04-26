@@ -86,6 +86,7 @@ textarea {
     overflow: hidden;
     background: url('../../../themes/lichfield_theme/images/paperBGwhite.png');
     padding: 0px;
+    display:none;
 }
 #media-model-saved-notes-menu {
     color: #555;
@@ -196,10 +197,11 @@ a.media-model-saved-notes-selector {
     font-family:verdana, sans-serif;
     position:absolute;
     top: 40px;
-    right: 25px;
+    right: 5px;
     text-align: center;
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
+    display: none;
 }
 .media-model-help-cata {
     font-weight: bold;
@@ -214,9 +216,10 @@ a.media-model-saved-notes-selector {
     font-family:verdana, sans-serif;
     position:absolute;
     top: 35px;
-    right: 25px;
+    right: 5px;
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
+    display: none;
 }
 .media-model-help-hide {
     pointer-events:none;
@@ -227,9 +230,6 @@ a.media-model-saved-notes-selector {
     right: 0px;
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
-}
-#media-model-load-note-form{
-    display:none;
 }
 #media-model-distances-layer{
     overflow: hidden;
@@ -252,11 +252,8 @@ a.media-model-saved-notes-selector {
     -webkit-border-radius:6px;
     border-radius:6px;
 }
-#media-model-edit-note{
-    display: none;
-    overflow: hidden;
-}
 #media-model-edit-note-form-inner{
+    display: none;
     width: 100%;
     height:500px;
 }
@@ -266,7 +263,6 @@ a.media-model-saved-notes-selector {
     width: 560px;
 }
 #media-model-edit-note-form{
-    display:none;
     overflow: hidden;
     padding: 0px;
     margin: -1px;
@@ -347,4 +343,14 @@ label[for=media-model-edit-note-title], label[for=media-model-path-select], labe
 }
 #media-model-load-notes-preview{
     padding: 5px 10px;
+}
+#media-model-support-warning {
+    color:red;
+    font-family:verdana, sans-serif;
+    position:absolute;
+    top: 40px;
+    left: 5px;
+    text-shadow: -1px 0 black, 0 1px black,
+      1px 0 black, 0 -1px black;
+
 }

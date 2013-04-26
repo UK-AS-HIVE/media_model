@@ -246,9 +246,9 @@ THREE.MediaModelControls = function ( object, domElement ) {
 		if(buttonPress)
 			return;
 		var buttonFix = 0;
-		if(event.target.className.indexOf('media-model-control-button')!==-1){
-			fix.x = event.target.offsetLeft;
-			fix.y = event.target.offsetTop;
+		if(event.target.className.indexOf('media-model-top-buttons')!==-1 || event.target.className.indexOf('media-model-control-button')!==-1){
+			fix.x = jQuery(event.target).offset().left - jQuery("#media-model-viewport").offset().left;
+			fix.y = jQuery(event.target).offset().top - jQuery("#media-model-viewport").offset().top;
 		}
 		else
 			fix = {x: 0, y: 0}; 

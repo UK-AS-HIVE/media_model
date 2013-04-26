@@ -209,13 +209,12 @@ function theme_model($variables) {
 </div>
 
 <div class="media-model-help-overlay">
-<p>Hit \'<span class="media-model-help-cata">h</span>\' to hide this menu
+<p><span class="media-model-help-hide">Hit \'<span class="media-model-help-cata">h</span>\' to hide this menu</span>
 </p>
-<p><span class="media-model-help-cata">Viewport:</span><br>
 <span class="media-model-help-keyname">left click+drag</span> - Rotate camera around local position<br>
 <span class="media-model-help-keyname">alt+left click+drag</span> - Rotate camera around cursor pin<br>
 <span class="media-model-help-keyname">middle click+drag</span> - Pan camera<br>
-<span class="media-model-help-keyname">double left click</span> - Drop pin at cursor pin<br>
+<span class="media-model-help-keyname">double left click</span> - Create/delete pin at cursor pin location<br>
 <span class="media-model-help-keyname">mouse wheel</span> - Zoom in/out<br>
 <span class="media-model-help-keyname">f</span> - Toggle fullscreen mode<br>
 <span class="media-model-help-keyname">n</span> - Switch to next set of pins (change color)<br>
@@ -223,11 +222,7 @@ function theme_model($variables) {
 <span class="media-model-help-keyname">o</span> - Switch pins to POLYGON mode<br>
 <span class="media-model-help-keyname">p</span> - Switch pins to POINTS mode<br>
 </p>
-<p><span class="media-model-help-cata">Menu:</span><br>
-Use the buttons at the top to export a link to <br/>
-your workspace, load a saved note, save a new note,<br/>
-or to make changes to your workspace.
-</p>
+
 </div>
 
 <div class="media-model-help-prompt">
@@ -236,6 +231,15 @@ or to make changes to your workspace.
 </div>
 
   ';
+  /*
+<p><span class="media-model-help-cata">Viewport:</span><br>
+
+<p><span class="media-model-help-cata">Menu:</span><br>
+Use the buttons at the top to export a link to <br/>
+your workspace, load a saved note, save a new note,<br/>
+or to make changes to your workspace.
+</p>
+*/
   //ctools_include('plugins');
   //dpm($variables);
   //drupal_set_message('<pre>theme_model variables: ' . print_r($variables, 1) . '</pre>');
@@ -247,6 +251,7 @@ or to make changes to your workspace.
   //drupal_add_js(libraries_get_path('jquery') . '/js/jquery-ui-1.10.1.custom.js');
   drupal_add_css($mediaPath . '/css/media_model.css');
   drupal_add_js(libraries_get_path('threejs') . '/build/three.js', 'file');
+  drupal_add_js($mediaPath . '/js/Detector.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/MTLLoader.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/OBJMTLLoader.js', 'file');
   drupal_add_js($mediaPath . '/js/loaders/OBJLoader.js', 'file');
@@ -255,10 +260,17 @@ or to make changes to your workspace.
   drupal_add_js($mediaPath . '/js/media_model.js', 'file');
 
   drupal_add_js('
-   function loadModel(){
-    media_model_viewer("' . $variables['element']['#file']->fid . '", ' . drupal_json_encode($objPaths) . ', ' . drupal_json_encode($mtlPaths) . ', ' . drupal_json_encode($nmlPaths) . ');
+   function init(){
+    if( Detector.webgl )
+      {
+        media_model_viewer("' . $variables['element']['#file']->fid . '", ' . drupal_json_encode($objPaths) . ', ' . drupal_json_encode($mtlPaths) . ', ' . drupal_json_encode($nmlPaths) . ');
+      }
+      else
+      {
+        Detector.addGetWebGLMessage();
+      }
    }
-   window.onload = loadModel;
+   window.onload = init;
    ', 'inline');
 
   if($variables['element']['#file']->media_model_notes['has_notes']) {

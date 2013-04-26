@@ -296,9 +296,11 @@ function init(){
 
 	leftButtons = document.createElement( 'div' );
 	leftButtons.id = 'media-model-left-buttons';
+	leftButtons.className = 'media-model-top-buttons';
 	guiControls.appendChild(leftButtons);
 	rightButtons = document.createElement( 'div' );
 	rightButtons.id = 'media-model-right-buttons';
+	rightButtons.className = 'media-model-top-buttons';
 	guiControls.appendChild(rightButtons);
 	centerIcon = document.createElement( 'span' );
 	centerIcon.id = 'media-model-center-icon';
@@ -344,7 +346,7 @@ function init(){
 	editNoteButton = document.createElement( 'button' );
 	editNoteButton.className = 'media-model-control-button';
 	editNoteButton.id = 'media-model-edit-note-button';
-	editNoteButton.innerHTML = 'Save/edit annotation';
+	editNoteButton.innerHTML = 'Create/save annotation';
 	rightButtons.appendChild(editNoteButton);
 
 	fsButton = document.createElement( 'button' );

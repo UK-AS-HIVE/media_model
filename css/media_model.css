@@ -4,13 +4,13 @@
     padding: 0;
 }
 #sortable li {
- 	margin: 0 3px 3px 3px;
- 	padding: 0.4em;
- 	padding-top: 1.5em;
- 	font-size: 1.4em;
- 	height: 15px;
- 	display:block;
- 	clear:both;
+    margin: 0 3px 3px 3px;
+    padding: 0.4em;
+    padding-top: 1.5em;
+    font-size: 1.4em;
+    height: 15px;
+    display:block;
+    clear:both;
 
 }
 #media-model-gui-background{
@@ -18,16 +18,21 @@
     background-color: #A0A0A0;
 }
 #media-model-gui-controls { 
-	position: absolute;
-	top: 0.5%;
-	width: 100%;
+    position: absolute;
+    top: 0.5%;
+    width: 100%;
     text-align:center;
-	
+    
 }
 #media-model-viewport {
     position: absolute;
     z-index: 1000;
     float: left;
+    -moz-box-shadow: 0px 5px 5px 5px rgba(0, 0, 0, 0.3);
+    -webkit-box-shadow: 0px 5px 5px 5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0px 5px 5px 5px rgba(0, 0, 0, 0.3);
+    height: 600px;
+    overflow: hidden !important;
 }
 #media-model-wrapper {
     background-color: #E0E0E0;
@@ -35,34 +40,33 @@
     height: 600px;
 }
 .media-model-control-button{
-	opacity: 1;
- 	margin: 0 3px 3px 3px;
-	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	box-shadow:inset 0px 1px 0px 0px #ffffff;
-	background-color:#eeeeee;
+    margin: 0 0px 3px 3px;
+    -moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
+    -webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
+    box-shadow:inset 0px 1px 0px 0px #ffffff;
+    background-color:#ffffff;
 
-	border:1px solid #dcdcdc;
-	display:inline-block;
-	color:#80152a;
-	font-family:Verdana;
-	font-size:0.8em;
-	font-weight:normal;
-	padding:6px;
-	text-decoration:none;
-	text-align:center;
-	z-index: 1001;
+    border:1px solid #dcdcdc;
+    display:inline-block;
+    color:#80152a;
+    font-family:Verdana;
+    font-size:0.8em;
+    font-weight:normal;
+    padding:6px;
+    text-decoration:none;
+    text-align:center;
+    z-index: 1001;
     text-transform:uppercase;
 }
 .media-model-control-button:hover{
     background-color:#80152a;
-	text-shadow:2px 2px 0px #80152a;
+    text-shadow:2px 2px 0px #80152a;
     color:#ffffff;
     text-decoration:none;
 }
 
 .marker-button:hover {
-	background-color:#dfdfdf;
+    background-color:#dfdfdf;
 }
 .media-model-guicontrol-text {
     padding: 5px;
@@ -79,90 +83,90 @@ textarea {
   resize: both;
 }
 #media-model-load-note-form {
-	overflow: hidden;
+    overflow: hidden;
     background: url('../../../themes/lichfield_theme/images/paperBGwhite.png');
     padding: 0px;
 }
 #media-model-saved-notes-menu {
-	color: #555;
-	width: 165px;
-	position: relative;
-	overflow: auto;
-	height: 269px;
-	text-align:left;
-	float: left;
+    color: #555;
+    width: 165px;
+    position: relative;
+    overflow: auto;
+    height: 269px;
+    text-align:left;
+    float: left;
 }
 .media-model-saved-notes-submenu{
-	background: #fff;
-	position: absolute;
-	top: 0px;
-	left: 0px;
-	z-index: 100;
-	width: 135px;
-	margin-left: 5px;
-	padding: 0px 0 5px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    background: #fff;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 100;
+    width: 135px;
+    margin-left: 5px;
+    padding: 0px 0 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 #media-model-saved-notes-menu li a {
-	color: #80152a;
-	display: block;
-	font-family: Verdana;
-	font-weight: normal;
-	padding: 6px 15px;
-	cursor: pointer;
-	text-decoration:none;
-	background:#f9f9f9;
+    color: #80152a;
+    display: block;
+    font-family: Verdana;
+    font-weight: normal;
+    padding: 6px 15px;
+    cursor: pointer;
+    text-decoration:none;
+    background:#f9f9f9;
 
 }
 #media-model-saved-notes-menu li a:hover{
-	background: #80152a;
-	color: #FFFFFF;
-	text-decoration: none;
+    background: #80152a;
+    color: #FFFFFF;
+    text-decoration: none;
 }
 a.media-model-saved-notes-selector {
-	font-size: 11px;
-	line-height: 16px;
-	color: #555;
-	position: absolute;
-	z-index: 110;
-	display: block;
-	padding: 11px 0 0 20px;
-	height: 28px;
-	width: 121px;
-	margin: -11px 0 0 -10px;
-	text-decoration: none;
-	cursor:pointer;
+    font-size: 11px;
+    line-height: 16px;
+    color: #555;
+    position: absolute;
+    z-index: 110;
+    display: block;
+    padding: 11px 0 0 20px;
+    height: 28px;
+    width: 121px;
+    margin: -11px 0 0 -10px;
+    text-decoration: none;
+    cursor:pointer;
 }
 .media-model-saved-notes-root{
-	list-style:none;
-	margin:0px;
-	padding:0px;
-	font-size: 11px;
-	padding: 11px 0 0 0px;
-	border-top:1px solid #dedede;
+    list-style:none;
+    margin:0px;
+    padding:0px;
+    font-size: 11px;
+    padding: 11px 0 0 0px;
+    border-top:1px solid #dedede;
 }
 #media-model-load-notes-preview{
     margin-top: 10px;
-	margin-left: 175px;
-	padding: 11px 0 0 0px;
+    margin-left: 175px;
+    padding: 11px 0 0 0px;
 }
 #media-model-load-notes-title{
-	font-weight: bold;
+    font-weight: bold;
 }
 #media-model-load-notes-contains{
-	font-size: 10px;
-	font-style:italic;
+    font-size: 10px;
+    font-style:italic;
 }
 #media-model-load-notes-selector{
-	border:1px solid #dcdcdc;
+    border:1px solid #dcdcdc;
 }
 #noteText{
-	height: 70px;
-	width: 450px;
+    height: 70px;
+    width: 450px;
 }
 #noteTitle
 {
-	width: 120px;
+    width: 120px;
 }
 .marker-button-icon-right {
    width: 0;
@@ -191,29 +195,41 @@ a.media-model-saved-notes-selector {
     color:rgb(255,255,255);
     font-family:verdana, sans-serif;
     position:absolute;
-    bottom: 25px;
-    left: 25px;
+    top: 40px;
+    right: 25px;
+    text-align: center;
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
 }
 .media-model-help-cata {
-	font-weight: bold;
+    font-weight: bold;
+    text-align: left;
 }
 .media-model-help-keyname {
-	font-weight: bold;
+    font-weight: bold;
 }
 .media-model-help-prompt {
     pointer-events:none;
     color:rgb(255,255,255);
     font-family:verdana, sans-serif;
     position:absolute;
-    bottom: 25px;
-    left: 25px;
+    top: 35px;
+    right: 25px;
+    text-shadow: -1px 0 black, 0 1px black,
+      1px 0 black, 0 -1px black;
+}
+.media-model-help-hide {
+    pointer-events:none;
+    color:rgb(255,255,255);
+    font-family:verdana, sans-serif;
+    position:absolute;
+    top: -5px;
+    right: 0px;
     text-shadow: -1px 0 black, 0 1px black,
       1px 0 black, 0 -1px black;
 }
 #media-model-load-note-form{
-	display:none;
+    display:none;
 }
 #media-model-distances-layer{
     overflow: hidden;
@@ -226,23 +242,23 @@ a.media-model-saved-notes-selector {
 }
 #media-model-center-icon{
     margin:0 auto;
-	padding:1px 10px;
+    padding:1px 10px;
     pointer-events:none;
     font-weight:bold;
     font-family:verdana, sans-serif;
     text-shadow: -1px 0 white, 0 1px white,
       1px 0 white, 0 -1px white;
-	-moz-border-radius:6px;
-	-webkit-border-radius:6px;
-	border-radius:6px;
+    -moz-border-radius:6px;
+    -webkit-border-radius:6px;
+    border-radius:6px;
 }
 #media-model-edit-note{
     display: none;
-	overflow: hidden;
+    overflow: hidden;
 }
 #media-model-edit-note-form-inner{
-	width: 100%;
-	height:500px;
+    width: 100%;
+    height:500px;
 }
 #media-model-edit-note-text{
     height:252px;
@@ -250,6 +266,7 @@ a.media-model-saved-notes-selector {
     width: 560px;
 }
 #media-model-edit-note-form{
+    display:none;
     overflow: hidden;
     padding: 0px;
     margin: -1px;
@@ -308,15 +325,15 @@ label[for=media-model-edit-note-title], label[for=media-model-path-select], labe
     font-size: 12px;
 }
 .ui-button{
-	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	box-shadow:inset 0px 1px 0px 0px #ffffff;
+    -moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
+    -webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
+    box-shadow:inset 0px 1px 0px 0px #ffffff;
     color:#80152a !important; 
-	border:1px solid #dcdcdc;
-	display:inline-block;
-	font-size:0.7em;
-	text-align:center;
-	z-index: 1001;
+    border:1px solid #dcdcdc;
+    display:inline-block;
+    font-size:0.7em;
+    text-align:center;
+    z-index: 1001;
     text-transform:uppercase;
     height: 48px;
     right: -10px;

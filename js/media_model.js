@@ -43,7 +43,7 @@ var protopin = {
 	geometry: new THREE.CylinderGeometry( 0, 1, 4, 4, false ),
 	material: new THREE.MeshPhongMaterial( { color : new THREE.Color(0xfffff)} )
 };
-
+protopin.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI/2));
 protopin.geometry.computeBoundingSphere();
 
 var PinHandler = function(){
@@ -59,7 +59,7 @@ var PinHandler = function(){
 	// a small positional light that will hug our cursor and approach the model
 	var pl = new THREE.PointLight( 0xffffff, 1, 1000 );
 	pin.mesh.add( pl );
-	pl.position.y = -20;
+	pl.position.z = -20;
 	var  path, grabbed, up, moving = false;
 	var target = { index: 0, pin: null, path: null, up: new THREE.Vector3()};
 	return{
@@ -440,7 +440,14 @@ function init(){
 			ph = new PinHandler();
 			paths.push(new THREE.MediaModelPath(colorChooser()));
 			ph.setPath(paths[0]);
-
+			/*
+	var geom, line;
+	for(var i=0;i<model.geometry.faces.length;i++){
+		geom = new THREE.Geometry();
+		geom.vertices.push(model.geometry.faces[i].centroid);
+		geom.vertices.push(new THREE.Vector3().copy(model.geometry.faces[i].centroid).add(model.geometry.faces[i].normal));
+		scene.add(new THREE.Line(geom, new THREE.LineBasicMaterial({color: new THREE.Color(0x00FF00)})));
+	}*/
 			modelLoaded = true;
 		});
 		loader.load( objPaths.low ? objPaths.low : objPaths.default, mtlPaths.low ? mtlPaths.low : mtlPaths.default);
@@ -474,6 +481,8 @@ function init(){
 	modalMessage.id = 'modal-message';
 	modalMessage.innerHTML = '&nbsp'
 	container.appendChild(modalMessage);
+
+
 } // end init
 
 function animate() {
@@ -524,9 +533,14 @@ function orientPin(pin, location){
 
 	// iterate over our model's faces to try to locate the nearest centroid
 	for( var i = 1; i < model.geometry.faces.length; i++ ){
-		if( location.distanceTo(model.geometry.faces[closestFaceIndex].centroid) > location.distanceTo(model.geometry.faces[i].centroid) )
+		if( location.distanceTo(model.geometry.faces[closestFaceIndex].centroid) > location.distanceTo(model.geometry.faces[i].centroid) ){
+			//console.log("Found one at" + location.distanceTo(model.geometry.faces[i].centroid) + "!");
 			closestFaceIndex = i;
+		}
 	}
+			console.log("Finally, ");
+			console.log(model.geometry.faces[closestFaceIndex].normal);
+
 	// move pin to our cursor's location
 	pin.mesh.position.copy( location );
 	var pinUp = new THREE.Vector3();
@@ -540,7 +554,9 @@ function orientPin(pin, location){
 	pin.mesh.position.add( pinUp );
 
 	pin.mesh.lookAt( location );
-	pin.mesh.rotation.x -= Math.PI/2;
+	//pin.mesh.rotation.x -= Math.PI/2;
+	//pin.mesh.rotation.applyEuler(model.geometry.faces[closestFaceIndex].normal, 'XYZ');
+	pin.mesh.matrixWorld.lookAt(new THREE.Vector3().copy(pin.mesh.position).sub(pinUp), pin.mesh.position, model.geometry.faces[closestFaceIndex].normal);
 	pin.cursorPos.copy( location );
 	return pinUp;
 }
